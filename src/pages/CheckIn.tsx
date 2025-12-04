@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Html5Qrcode } from 'html5-qrcode'
 import { Scan, CheckCircle, XCircle, Search } from 'lucide-react'
-import { mockRegistrations, getEventById } from '../data/mockData'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 
@@ -14,7 +13,7 @@ export default function CheckIn() {
   const [checkInResult, setCheckInResult] = useState<{
     success: boolean
     message: string
-    registration?: typeof mockRegistrations[0]
+    registration?: any
   } | null>(null)
 
   useEffect(() => {
@@ -59,7 +58,9 @@ export default function CheckIn() {
   }
 
   const processCheckIn = (qrCode: string) => {
-    const registration = mockRegistrations.find(r => r.qrCode === qrCode)
+    // Temporary - replace with API call later
+    const mockRegistrations: any[] = []
+    const registration = mockRegistrations.find((r: any) => r.qrCode === qrCode)
     
     if (!registration) {
       setCheckInResult({
@@ -224,7 +225,8 @@ export default function CheckIn() {
                     </div>
                   )}
                   {(() => {
-                    const event = getEventById(checkInResult.registration!.eventId)
+                    // Temporary - event data not available
+                    const event: any = null
                     return event ? (
                       <div>
                         <p className="text-sm text-gray-600">Sự kiện:</p>

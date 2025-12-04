@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { mockEvents } from '../data/mockData'
 import { Calendar, MapPin, Users, Edit, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
@@ -8,6 +7,9 @@ import { vi } from 'date-fns/locale'
 export default function Events() {
   const { user } = useAuth()
   const isOrganizer = user?.role === 'ORGANIZER' || user?.role === 'STAFF'
+
+  // Temporary empty array - replace with API call later
+  const events: any[] = []
 
   return (
     <div>
@@ -23,8 +25,13 @@ export default function Events() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {mockEvents.map((event) => (
+      {events.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-md p-12 text-center">
+          <p className="text-gray-500 text-lg">Chưa có sự kiện nào</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {events.map((event) => (
           <div key={event.id} className="bg-white rounded-lg shadow-md overflow-hidden">
             {event.imageUrl && (
               <img
@@ -105,8 +112,9 @@ export default function Events() {
               </Link>
             </div>
           </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

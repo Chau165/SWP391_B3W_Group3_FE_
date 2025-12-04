@@ -1,12 +1,14 @@
 import { useParams, Link } from 'react-router-dom'
-import { getEventById, getSeatsByEvent } from '../data/mockData'
 import { ArrowLeft } from 'lucide-react'
 import { useState } from 'react'
 
 export default function SeatManagement() {
   const { eventId } = useParams<{ eventId: string }>()
-  const event = eventId ? getEventById(eventId) : null
-  const seats = eventId ? getSeatsByEvent(eventId) : []
+  
+  // Temporary - replace with API calls later
+  const event: any = null
+  const seats: any[] = []
+  
   const [selectedSeat, setSelectedSeat] = useState<string | null>(null)
 
   if (!event) {

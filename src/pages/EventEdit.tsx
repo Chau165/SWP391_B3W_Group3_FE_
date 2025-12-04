@@ -1,12 +1,13 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getEventById } from '../data/mockData'
 import { ArrowLeft } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
 export default function EventEdit() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const event = id ? getEventById(id) : null
+  
+  // Temporary - replace with API call later
+  const event: any = null
 
   const [formData, setFormData] = useState({
     title: '',

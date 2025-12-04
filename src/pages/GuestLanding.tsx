@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { CalendarDays, Ticket, Users, ShieldCheck } from 'lucide-react'
-import { mockEvents } from '../data/mockData'
 
 const stats = [
   { label: 'Sự kiện đã tổ chức', value: '250+' },
@@ -32,7 +31,8 @@ const benefits = [
 ]
 
 export default function GuestLanding() {
-  const highlightedEvents = mockEvents.slice(0, 3)
+  // Temporary empty array - replace with API call later
+  const highlightedEvents: any[] = []
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 text-gray-900">
@@ -122,26 +122,32 @@ export default function GuestLanding() {
             <p className="text-gray-600">Một số chương trình đang thu hút đông đảo sinh viên.</p>
           </header>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {highlightedEvents.map(event => (
-              <div key={event.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-md hover:shadow-lg transition-shadow">
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm uppercase tracking-widest text-blue-600">{event.eventType}</p>
-                    <h3 className="text-xl font-semibold text-gray-900">{event.title}</h3>
+          {highlightedEvents.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p>Chưa có sự kiện nào</p>
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-3">
+              {highlightedEvents.map((event: any) => (
+                <div key={event.id} className="rounded-2xl border border-gray-200 bg-white p-5 shadow-md hover:shadow-lg transition-shadow">
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm uppercase tracking-widest text-blue-600">{event.eventType}</p>
+                      <h3 className="text-xl font-semibold text-gray-900">{event.title}</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 line-clamp-3">{event.description}</p>
+                    <div className="text-sm text-gray-500">
+                      <p>{new Date(event.startDate).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                      <p>{event.location}</p>
+                    </div>
+                    <p className="text-sm font-semibold text-blue-600">
+                      {event.currentParticipants}/{event.maxParticipants} người đăng ký
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-600 line-clamp-3">{event.description}</p>
-                  <div className="text-sm text-gray-500">
-                    <p>{new Date(event.startDate).toLocaleString('vi-VN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
-                    <p>{event.location}</p>
-                  </div>
-                  <p className="text-sm font-semibold text-blue-600">
-                    {event.currentParticipants}/{event.maxParticipants} người đăng ký
-                  </p>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-8 text-center shadow-lg">

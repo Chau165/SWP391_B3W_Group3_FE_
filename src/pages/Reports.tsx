@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { getEventById, getRegistrationsByEvent, mockEvents } from '../data/mockData'
 import { Calendar, Users, CheckCircle, XCircle, Download, Filter } from 'lucide-react'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
@@ -9,39 +8,27 @@ export default function Reports() {
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
 
-  const selectedEvent = selectedEventId ? getEventById(selectedEventId) : null
-  const registrations = selectedEventId ? getRegistrationsByEvent(selectedEventId) : []
-  const checkedInCount = registrations.filter(r => r.checkedIn).length
+  // Temporary - replace with API calls later
+  const mockEvents: any[] = []
+  const selectedEvent: any = null
+  const registrations: any[] = []
+  const checkedInCount = registrations.filter((r: any) => r.checkedIn).length
   const notCheckedInCount = registrations.length - checkedInCount
 
   // Overall statistics
   const totalEvents = mockEvents.length
-  const totalRegistrations = mockEvents.reduce((sum, event) => {
-    return sum + getRegistrationsByEvent(event.id).length
-  }, 0)
-  const totalCheckedIn = mockEvents.reduce((sum, event) => {
-    return sum + getRegistrationsByEvent(event.id).filter(r => r.checkedIn).length
-  }, 0)
+  const totalRegistrations = 0
+  const totalCheckedIn = 0
 
   // Chart data
-  const eventAttendanceData = mockEvents.map(event => {
-    const regs = getRegistrationsByEvent(event.id)
-    return {
-      name: event.title.length > 20 ? event.title.substring(0, 20) + '...' : event.title,
-      'Đã đăng ký': regs.length,
-      'Đã check-in': regs.filter(r => r.checkedIn).length
-    }
-  })
+  const eventAttendanceData: any[] = []
 
   const checkInPieData = [
     { name: 'Đã check-in', value: checkedInCount, color: '#10b981' },
     { name: 'Chưa check-in', value: notCheckedInCount, color: '#f59e0b' }
   ]
 
-  const eventTypeData = mockEvents.reduce((acc, event) => {
-    acc[event.eventType] = (acc[event.eventType] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
+  const eventTypeData: Record<string, number> = {}
 
   const eventTypeChartData = Object.entries(eventTypeData).map(([name, value]) => ({
     name,
@@ -125,7 +112,7 @@ export default function Reports() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">Tất cả sự kiện</option>
-              {mockEvents.map(event => (
+              {mockEvents.map((event: any) => (
                 <option key={event.id} value={event.id}>
                   {event.title}
                 </option>
@@ -272,7 +259,7 @@ export default function Reports() {
                     </td>
                   </tr>
                 ) : (
-                  registrations.map(reg => (
+                  registrations.map((reg: any) => (
                     <tr key={reg.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {reg.userName}
@@ -342,9 +329,9 @@ export default function Reports() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {mockEvents.map(event => {
-                  const regs = getRegistrationsByEvent(event.id)
-                  const checkedIn = regs.filter(r => r.checkedIn).length
+                {mockEvents.map((event: any) => {
+                  const regs: any[] = []
+                  const checkedIn = 0
                   return (
                     <tr key={event.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">

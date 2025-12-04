@@ -1,13 +1,14 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { getRegistrationsByUser, getEventById } from '../data/mockData'
 import { Ticket, Calendar, MapPin, CheckCircle, XCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 
 export default function MyTickets() {
   const { user } = useAuth()
-  const registrations = user ? getRegistrationsByUser(user.fullName) : []
+  
+  // Temporary - replace with API calls later
+  const registrations: any[] = []
 
   return (
     <div>
@@ -26,8 +27,9 @@ export default function MyTickets() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {registrations.map((registration) => {
-            const event = getEventById(registration.eventId)
+          {registrations.map((registration: any) => {
+            // Temporary - replace with API call
+            const event: any = null
             if (!event) return null
 
             return (

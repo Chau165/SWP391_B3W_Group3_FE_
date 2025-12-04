@@ -1,45 +1,35 @@
-export interface Event {
-  id: string
+// src/types/event.ts
+
+// Map đúng với EventListDto ở BE
+export interface EventListItem {
+  eventId: number
   title: string
   description: string
-  organizer: string
-  organizerType: 'Club' | 'Department'
-  eventType: 'Workshop' | 'Talkshow' | 'Other'
-  startDate: string
-  endDate: string
-  location: string
-  maxParticipants: number
-  currentParticipants: number
-  hasSeating: boolean
-  totalSeats?: number
-  availableSeats?: number
-  imageUrl?: string
-  status: 'Upcoming' | 'Ongoing' | 'Completed' | 'Cancelled'
-  createdAt: string
+  startTime: string // ISO datetime string
+  endTime: string
+  maxSeats: number
+  status: string // OPEN / CLOSED / ...
 }
 
-export interface Registration {
-  id: string
-  eventId: string
-  userId: string
-  userName: string
-  userEmail: string
-  studentId?: string
-  seatNumber?: string
-  qrCode: string
-  registeredAt: string
-  checkedIn: boolean
-  checkedInAt?: string
+// Chi tiết một sự kiện
+export interface EventDetail extends EventListItem {
+  venueName?: string
+  location?: string
+  speakerName?: string
+  currentParticipants?: number
+  eventType?: string
+
+  // 👇 thêm các field khu vực
+  areaId?: number
+  areaName?: string
+  floor?: string
+  areaCapacity?: number
+
+  tickets?: {
+    categoryTicketId: number
+    name: string
+    price: number
+    maxQuantity: number
+    status: string
+  }[]
 }
-
-export interface Seat {
-  id: string
-  eventId: string
-  seatNumber: string
-  row: string
-  column: number
-  status: 'Available' | 'Reserved' | 'Occupied'
-  registrationId?: string
-}
-
-
