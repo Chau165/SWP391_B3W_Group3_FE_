@@ -50,41 +50,7 @@ export default function Layout() {
                   Tạo sự kiện
                 </Link>
               )}
-              <Link
-                to="/dashboard/my-tickets"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
-              >
-                Vé của tôi
-              </Link>
-              <Link
-                to="/dashboard/bills"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
-              >
-                Hóa đơn
-              </Link>
-              <Link
-                to="/dashboard/my-event-requests"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
-              >
-                Yêu cầu sự kiện
-              </Link>
-              {isOrganizer && (
-                <Link
-                  to="/dashboard/check-in"
-                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  Check-in
-                </Link>
-              )}
-              {isStaff && (
-                <Link
-                  to="/dashboard/reports"
-                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  Báo cáo
-                </Link>
-              )}
-              {isOrganizer && (
+              {user?.role === 'ORGANIZER' && (
                 <>
                   <Link
                     to="/dashboard/speakers"
@@ -98,21 +64,39 @@ export default function Layout() {
                   >
                     Địa điểm
                   </Link>
+                </>
+              )}
+              {!isOrganizer && (
+                <>
                   <Link
-                    to="/dashboard/category-tickets"
+                    to="/dashboard/my-tickets"
                     className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
                   >
-                    Loại vé
+                    Vé của tôi
+                  </Link>
+                  <Link
+                    to="/dashboard/bills"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Hóa đơn
                   </Link>
                 </>
               )}
               {isStaff && (
-                <Link
-                  to="/dashboard/organizers"
-                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
-                >
-                  Organizer
-                </Link>
+                <>
+                  <Link
+                    to="/dashboard/check-in"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Check-in
+                  </Link>
+                  <Link
+                    to="/dashboard/reports"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Báo cáo
+                  </Link>
+                </>
               )}
             </nav>
 
@@ -168,46 +152,7 @@ export default function Layout() {
                   Tạo sự kiện
                 </Link>
               )}
-              <Link
-                to="/dashboard/my-tickets"
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Vé của tôi
-              </Link>
-              <Link
-                to="/dashboard/bills"
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Hóa đơn
-              </Link>
-              <Link
-                to="/dashboard/my-event-requests"
-                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Yêu cầu sự kiện
-              </Link>
-              {isOrganizer && (
-                <Link
-                  to="/dashboard/check-in"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Check-in
-                </Link>
-              )}
-              {isStaff && (
-                <Link
-                  to="/dashboard/reports"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Báo cáo
-                </Link>
-              )}
-              {isOrganizer && (
+              {user?.role === 'ORGANIZER' && (
                 <>
                   <Link
                     to="/dashboard/speakers"
@@ -223,23 +168,43 @@ export default function Layout() {
                   >
                     Địa điểm
                   </Link>
+                </>
+              )}
+              {!isOrganizer && (
+                <>
                   <Link
-                    to="/dashboard/category-tickets"
+                    to="/dashboard/my-tickets"
                     className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Loại vé
+                    Vé của tôi
+                  </Link>
+                  <Link
+                    to="/dashboard/bills"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Hóa đơn
                   </Link>
                 </>
               )}
               {isStaff && (
-                <Link
-                  to="/dashboard/organizers"
-                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Organizer
-                </Link>
+                <>
+                  <Link
+                    to="/dashboard/check-in"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Check-in
+                  </Link>
+                  <Link
+                    to="/dashboard/reports"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Báo cáo
+                  </Link>
+                </>
               )}
               <div className="px-3 py-2 border-t mt-2">
                 <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>

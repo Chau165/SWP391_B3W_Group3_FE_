@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import { MapPin, PlusCircle, Building2, Search } from 'lucide-react'
 
-type MockVenue = {
+type Venue = {
   id: string
   name: string
   address: string
   capacity: number
 }
 
-// Temporary mock – replace with API later
-const mockVenues: MockVenue[] = []
+// TODO: Fetch venues from API
+const venues: Venue[] = []
 
 export default function Venues() {
   const [search, setSearch] = useState('')
 
-  const filtered = mockVenues.filter(v =>
+  const filtered = venues.filter(v =>
     v.name.toLowerCase().includes(search.toLowerCase()),
   )
 

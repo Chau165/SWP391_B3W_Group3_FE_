@@ -57,38 +57,26 @@ export default function CheckIn() {
     setScanning(false)
   }
 
-  const processCheckIn = (qrCode: string) => {
-    // Temporary - replace with API call later
-    const mockRegistrations: any[] = []
-    const registration = mockRegistrations.find((r: any) => r.qrCode === qrCode)
-    
-    if (!registration) {
+  const processCheckIn = async (qrCode: string) => {
+    // TODO: Replace with API call to check-in endpoint
+    try {
+      // const response = await fetch('/api/check-in', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ qrCode })
+      // })
+      // const data = await response.json()
+      
       setCheckInResult({
         success: false,
-        message: 'Không tìm thấy vé với mã QR này'
+        message: 'Vui lòng kết nối API để thực hiện check-in'
       })
-      return
-    }
-
-    if (registration.checkedIn) {
+    } catch (error) {
       setCheckInResult({
         success: false,
-        message: 'Vé này đã được check-in trước đó',
-        registration
+        message: 'Lỗi kết nối API'
       })
-      return
     }
-
-    // Mock check-in
-    setCheckInResult({
-      success: true,
-      message: 'Check-in thành công!',
-      registration: {
-        ...registration,
-        checkedIn: true,
-        checkedInAt: new Date().toISOString()
-      }
-    })
   }
 
   const handleManualCheckIn = () => {

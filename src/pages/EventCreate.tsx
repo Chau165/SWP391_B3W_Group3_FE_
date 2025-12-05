@@ -20,11 +20,23 @@ export default function EventCreate() {
     imageUrl: ''
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock create
-    alert('Tạo sự kiện thành công!')
-    navigate('/events')
+    // TODO: Replace with API call to create event
+    try {
+      // const response = await fetch('/api/events', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(formData)
+      // })
+      // if (response.ok) {
+      //   navigate('/events')
+      // }
+      alert('Vui lòng kết nối API để tạo sự kiện')
+    } catch (error) {
+      console.error('Error creating event:', error)
+      alert('Lỗi kết nối API')
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

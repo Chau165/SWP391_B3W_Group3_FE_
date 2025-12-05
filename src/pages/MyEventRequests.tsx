@@ -3,15 +3,15 @@ import { FileClock, PlusCircle } from 'lucide-react'
 
 type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 
-type MockEventRequest = {
+type EventRequest = {
   id: string
   title: string
   createdAt: string
   status: EventRequestStatus
 }
 
-// Temporary mock – replace with API later
-const mockRequests: MockEventRequest[] = []
+// TODO: Fetch event requests from API
+const requests: EventRequest[] = []
 
 const getStatusLabel = (status: EventRequestStatus) => {
   switch (status) {
@@ -56,7 +56,7 @@ export default function MyEventRequests() {
         </Link>
       </div>
 
-      {mockRequests.length === 0 ? (
+      {requests.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-10 text-center">
           <FileClock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">
@@ -83,7 +83,7 @@ export default function MyEventRequests() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {mockRequests.map(req => (
+              {requests.map(req => (
                 <tr key={req.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {req.title}

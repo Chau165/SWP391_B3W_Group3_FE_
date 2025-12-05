@@ -21,11 +21,23 @@ export default function EventRequestCreate() {
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock submit – replace with API later
-    alert('Gửi yêu cầu sự kiện thành công (mock).')
-    navigate('/dashboard/my-event-requests')
+    // TODO: Replace with API call to submit event request
+    try {
+      // const response = await fetch('/api/event-requests', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(formData)
+      // })
+      // if (response.ok) {
+      //   navigate('/dashboard/my-event-requests')
+      // }
+      alert('Vui lòng kết nối API để gửi yêu cầu sự kiện')
+    } catch (error) {
+      console.error('Error submitting event request:', error)
+      alert('Lỗi kết nối API')
+    }
   }
 
   return (

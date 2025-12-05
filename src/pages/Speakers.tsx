@@ -1,20 +1,20 @@
 import { useState } from 'react'
 import { PlusCircle, User, Search } from 'lucide-react'
 
-type MockSpeaker = {
+type Speaker = {
   id: string
   name: string
   title: string
   bio: string
 }
 
-// Temporary mock – replace with API later
-const mockSpeakers: MockSpeaker[] = []
+// TODO: Fetch speakers from API
+const speakers: Speaker[] = []
 
 export default function Speakers() {
   const [search, setSearch] = useState('')
 
-  const filtered = mockSpeakers.filter(s =>
+  const filtered = speakers.filter(s =>
     s.name.toLowerCase().includes(search.toLowerCase()),
   )
 
