@@ -1,0 +1,205 @@
+// src/components/common/SeatGrid.tsx
+import { useState, useEffect } from 'react'
+
+export type Seat = {
+  seatId: number
+  seatCode: string
+  rowNo: string
+  colNo: string
+  status: string
+  seatType?: string
+  areaId: number
+}
+
+interface SeatGridProps {
+  eventId: number
+  areaId: number
+  seatType?: string // Optional: 'VIP' or 'STANDARD'
+  token?: string | null
+  selectedSeat: Seat | null
+  onSeatSelect: (seat: Seat | null) => void
+}
+
+export function SeatGrid({ eventId, areaId, seatType, token, selectedSeat, onSeatSelect }: SeatGridProps) {
+  const [seats, setSeats] = useState<Seat[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchSeats = async () => {
+      setLoading(true)
+      setError(null)
+
+      try {
+        const params = new URLSearchParams({
+          areaId: String(areaId),
+          eventId: String(eventId),
+        })
+        
+        // Add seatType if provided
+        if (seatType) {
+          params.append('seatType', seatType)
+        }
+
+        const res = await fetch(`/api/seats?${params.toString()}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        })
+
+        if (!res.ok) {
+          let msg = `Không thể tải danh sách ghế (HTTP ${res.status})`
+          try {
+            const data = await res.json()
+            if (data && typeof data === 'object' && 'error' in data) {
+              msg = (data as any).error || msg
+            }
+          } catch {
+            // ignore
+          }
+          throw new Error(msg)
+        }
+
+        const data = await res.json()
+        console.log('Seat API Response:', data) // Debug log
+        
+        // API returns: { areaId, total, seats: [...] }
+        const seatsArray = data.seats || []
+        
+        console.log('Seats from API:', seatsArray) // Debug log
+        console.log('First seat structure:', seatsArray[0]) // Debug log to see actual properties
+        
+        // Sort seats by ID in ascending order (1 -> infinity)
+        const sortedSeats = seatsArray.sort((a: any, b: any) => (a.seatId || 0) - (b.seatId || 0))
+        setSeats(sortedSeats)
+      } catch (err: any) {
+        console.error('Lỗi load seats:', err)
+        setError(err?.message ?? 'Không thể tải danh sách ghế')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchSeats()
+  }, [eventId, areaId, seatType, token])
+
+  if (loading) {
+    return <p className="text-gray-500 mb-3">Đang tải danh sách ghế...</p>
+  }
+
+  if (error) {
+    return <p className="text-red-500 mb-3">{error}</p>
+  }
+
+  console.log('Seats state:', seats) // Debug log
+  console.log('Seats length:', seats.length) // Debug log
+
+  if (seats.length === 0) {
+    return (
+      <p className="text-gray-600 mb-4">
+        Hiện không còn ghế trống trong khu vực này.
+      </p>
+    )
+  }
+
+  // Group seats by row
+  const seatsByRow: Record<string, Seat[]> = {}
+  seats.forEach(seat => {
+    const rowKey = seat.rowNo || 'Unknown'
+    if (!seatsByRow[rowKey]) {
+      seatsByRow[rowKey] = []
+    }
+    seatsByRow[rowKey].push(seat)
+  })
+
+  console.log('Seats grouped by row:', seatsByRow) // Debug log
+
+  // Find the maximum number of columns across all rows
+  const maxColumns = Math.max(1, ...Object.values(seatsByRow).map(rowSeats =>
+    Math.max(1, ...rowSeats.map(s => parseInt(s.colNo || '1')))
+  ))
+
+  // Create a full grid with placeholders for missing seats
+  const createSeatGrid = (rowSeats: Seat[], maxCols: number) => {
+    const grid: (Seat | null)[] = []
+    for (let col = 1; col <= maxCols; col++) {
+      const seat = rowSeats.find(s => parseInt(s.colNo) === col)
+      grid.push(seat || null)
+    }
+    return grid
+  }
+
+  const getSeatColor = (seat: Seat, isSelected: boolean) => {
+    if (isSelected) return 'border-blue-600 bg-blue-100 font-semibold'
+    
+    // Reserved and occupied seats are red
+    if (seat.status === 'RESERVED' || seat.status === 'OCCUPIED') {
+      return 'border-red-300 bg-red-50 cursor-not-allowed'
+    }
+    
+    // Available seats: VIP = yellow, STANDARD = grey
+    if (seat.seatType === 'VIP') {
+      return 'border-yellow-300 bg-yellow-50 hover:bg-yellow-100'
+    }
+    
+    // STANDARD or default
+    return 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+  }
+
+  return (
+    <div className="mb-6">
+      {/* Seat Grid */}
+      <div className="space-y-3">
+        {Object.keys(seatsByRow).sort().map(row => {
+          const seatGrid = createSeatGrid(seatsByRow[row], maxColumns)
+          return (
+            <div key={row} className="flex items-center space-x-2">
+              <div className="w-8 text-center font-semibold text-gray-700 text-sm">{row}</div>
+              <div className="flex-1 flex gap-2">
+                {seatGrid.map((seat, index) => (
+                  seat ? (
+                    <button
+                      key={seat.seatId}
+                      type="button"
+                      onClick={() => seat.status !== 'OCCUPIED' && seat.status !== 'RESERVED' && onSeatSelect(seat)}
+                      disabled={seat.status === 'OCCUPIED' || seat.status === 'RESERVED'}
+                      className={`w-12 h-10 border-2 rounded-lg text-xs font-medium transition-colors ${
+                        getSeatColor(seat, selectedSeat?.seatId === seat.seatId)
+                      }`}
+                      title={`${seat.seatCode} (${seat.seatType}): ${seat.status}`}
+                    >
+                      {seat.seatCode}
+                    </button>
+                  ) : (
+                    <div key={`empty-${row}-${index}`} className="w-12 h-10"></div>
+                  )
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-4 pt-4 border-t border-gray-200">
+        <p className="text-xs font-semibold text-gray-700 mb-2">Chú thích:</p>
+        <div className="flex flex-wrap gap-3 text-xs">
+          <div className="flex items-center">
+            <div className="w-6 h-6 bg-yellow-50 border-2 border-yellow-300 rounded mr-1.5"></div>
+            <span>VIP (Trống)</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-6 h-6 bg-gray-50 border-2 border-gray-300 rounded mr-1.5"></div>
+            <span>Standard (Trống)</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-6 h-6 bg-red-50 border-2 border-red-300 rounded mr-1.5"></div>
+            <span>Đã đặt/Đã ngồi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}

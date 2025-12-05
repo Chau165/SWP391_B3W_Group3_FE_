@@ -90,7 +90,7 @@ export default function SeatManagement() {
 
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Quản lý ghế ngồi</h1>
-        <p className="text-gray-600">{event.title}</p>
+        <p className="text-gray-600">Event ID: {eventId}</p>
       </div>
 
       {/* Stats */}
