@@ -56,6 +56,18 @@ export default function Layout() {
               >
                 Vé của tôi
               </Link>
+              <Link
+                to="/dashboard/bills"
+                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Hóa đơn
+              </Link>
+              <Link
+                to="/dashboard/my-event-requests"
+                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+              >
+                Yêu cầu sự kiện
+              </Link>
               {isOrganizer && (
                 <Link
                   to="/dashboard/check-in"
@@ -70,6 +82,36 @@ export default function Layout() {
                   className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
                 >
                   Báo cáo
+                </Link>
+              )}
+              {isOrganizer && (
+                <>
+                  <Link
+                    to="/dashboard/speakers"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Diễn giả
+                  </Link>
+                  <Link
+                    to="/dashboard/venues"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Địa điểm
+                  </Link>
+                  <Link
+                    to="/dashboard/category-tickets"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Loại vé
+                  </Link>
+                </>
+              )}
+              {isStaff && (
+                <Link
+                  to="/dashboard/organizers"
+                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  Organizer
                 </Link>
               )}
             </nav>
@@ -133,6 +175,20 @@ export default function Layout() {
               >
                 Vé của tôi
               </Link>
+              <Link
+                to="/dashboard/bills"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Hóa đơn
+              </Link>
+              <Link
+                to="/dashboard/my-event-requests"
+                className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Yêu cầu sự kiện
+              </Link>
               {isOrganizer && (
                 <Link
                   to="/dashboard/check-in"
@@ -149,6 +205,40 @@ export default function Layout() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Báo cáo
+                </Link>
+              )}
+              {isOrganizer && (
+                <>
+                  <Link
+                    to="/dashboard/speakers"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Diễn giả
+                  </Link>
+                  <Link
+                    to="/dashboard/venues"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Địa điểm
+                  </Link>
+                  <Link
+                    to="/dashboard/category-tickets"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Loại vé
+                  </Link>
+                </>
+              )}
+              {isStaff && (
+                <Link
+                  to="/dashboard/organizers"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Organizer
                 </Link>
               )}
               <div className="px-3 py-2 border-t mt-2">
@@ -173,5 +263,6 @@ export default function Layout() {
     </div>
   )
 }
+
 
 

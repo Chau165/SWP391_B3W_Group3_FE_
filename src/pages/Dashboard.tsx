@@ -199,8 +199,10 @@ export default function Dashboard() {
 
   const confirmSeat = () => {
     if (!selectedSeat || !selectedTicket || !selectedEvent) return
-    console.log('✅ Chọn seat:', selectedSeat, 'ticket:', selectedTicket, 'event:', selectedEvent)
-    // TODO: nối tiếp sang API thanh toán / giữ ghế
+
+    // Sau này sẽ call API giữ ghế + tạo order.
+    // Hiện tại chỉ chuyển sang màn hình Payment với thông tin cơ bản (mock).
+    window.location.href = '/dashboard/payment'
   }
 
   // ===== Tính sự kiện sắp tới =====
@@ -616,3 +618,4 @@ export default function Dashboard() {
     </div>
   )
 }
+

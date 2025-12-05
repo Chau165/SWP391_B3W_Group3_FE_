@@ -33,7 +33,7 @@ type Ticket = {
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
-  const { user, token } = useAuth()
+  useAuth() // đảm bảo đã login, chưa cần dùng giá trị user ở đây
 
   const [event, setEvent] = useState<EventDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -56,12 +56,6 @@ export default function EventDetail() {
     }
 
     const fetchDetail = async () => {
-      if (!token) {
-        setError('Chưa đăng nhập, vui lòng đăng nhập lại')
-        setLoading(false)
-        return
-      }
-
       try {
         setLoading(true)
         setError(null)
@@ -71,7 +65,6 @@ export default function EventDetail() {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
           },
         })
 
@@ -108,7 +101,7 @@ export default function EventDetail() {
     }
 
     fetchDetail()
-  }, [id, token])
+  }, [id])
 
   // ===== Mở popup + load ghế =====
   const openSeatModal = async (ticket: Ticket) => {
@@ -138,7 +131,6 @@ export default function EventDetail() {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       })
 
@@ -172,8 +164,10 @@ export default function EventDetail() {
 
   const confirmSeat = () => {
     if (!selectedSeat || !selectedTicket || !event) return
-    console.log('✅ Chọn seat:', selectedSeat, 'ticket:', selectedTicket, 'event:', event)
-    // chỗ này sau nối tiếp sang payment / buyTicket
+
+    // Sau này sẽ call API giữ ghế + tạo order.
+    // Hiện tại chỉ chuyển sang màn hình Payment với thông tin cơ bản (mock).
+    window.location.href = '/dashboard/payment'
   }
 
   // ===== UI: Loading =====
@@ -506,3 +500,4 @@ export default function EventDetail() {
     </div>
   )
 }
+
