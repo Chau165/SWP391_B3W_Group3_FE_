@@ -6,23 +6,8 @@ import { Calendar, Users, MapPin, Clock, ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import type { EventDetail } from '../types/event'
+import { SeatGrid, type Seat } from '../components/common/SeatGrid'
 
-// ===== Kiểu dữ liệu cho ghế và response từ /api/seats =====
-type Seat = {
-  seatId: number
-  seatCode?: string | null
-  rowNumber?: string | null
-  status?: string | null
-}
-
-type SeatResponse = {
-  areaId: number
-  seatType?: string | null
-  total: number
-  seats: Seat[]
-}
-
-// 🔹 Định nghĩa Ticket đơn giản, đúng với BE trả về
 type Ticket = {
   categoryTicketId: number
   name: string
@@ -33,19 +18,17 @@ type Ticket = {
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>()
-  useAuth() // đảm bảo đã login, chưa cần dùng giá trị user ở đây
+  const token = localStorage.getItem('token')
+  useAuth()
 
   const [event, setEvent] = useState<EventDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [notFound, setNotFound] = useState(false)
 
-  // ===== State cho popup chọn ghế =====
+  // Seat selection modal state
   const [isSeatModalOpen, setIsSeatModalOpen] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [seats, setSeats] = useState<Seat[]>([])
-  const [loadingSeats, setLoadingSeats] = useState(false)
-  const [seatError, setSeatError] = useState<string | null>(null)
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
 
   useEffect(() => {
@@ -103,70 +86,23 @@ export default function EventDetail() {
     fetchDetail()
   }, [id])
 
-  // ===== Mở popup + load ghế =====
-  const openSeatModal = async (ticket: Ticket) => {
-    if (!event) return
-
-    if (!event.areaId) {
-      setSelectedTicket(ticket)
-      setIsSeatModalOpen(true)
-      setSeatError('Sự kiện chưa cấu hình khu vực (areaId).')
-      return
-    }
-
+  const openSeatModal = (ticket: Ticket) => {
     setSelectedTicket(ticket)
     setIsSeatModalOpen(true)
-    setLoadingSeats(true)
-    setSeatError(null)
     setSelectedSeat(null)
-    setSeats([])
-
-    try {
-      const params = new URLSearchParams({
-        areaId: String(event.areaId),
-        eventId: String(event.eventId),
-      })
-
-      const res = await fetch(`/api/seats?${params.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      if (!res.ok) {
-        let msg = `Không thể tải danh sách ghế (HTTP ${res.status})`
-        try {
-          const data = await res.json()
-          if (data && typeof data === 'object' && 'error' in data) {
-            msg = (data as any).error || msg
-          }
-        } catch {}
-        throw new Error(msg)
-      }
-
-      const data: SeatResponse = await res.json()
-      setSeats(data.seats || [])
-    } catch (err: any) {
-      console.error('Lỗi load seats:', err)
-      setSeatError(err?.message ?? 'Không thể tải danh sách ghế')
-    } finally {
-      setLoadingSeats(false)
-    }
   }
 
   const closeSeatModal = () => {
     setIsSeatModalOpen(false)
     setSelectedTicket(null)
-    setSeatError(null)
     setSelectedSeat(null)
   }
 
   const confirmSeat = () => {
     if (!selectedSeat || !selectedTicket || !event) return
 
-    // Sau này sẽ call API giữ ghế + tạo order.
-    // Hiện tại chỉ chuyển sang màn hình Payment với thông tin cơ bản (mock).
+    // TODO: Call API to reserve seat + create order
+    // For now, redirect to payment page
     window.location.href = '/dashboard/payment'
   }
 
@@ -417,11 +353,10 @@ export default function EventDetail() {
         </div>
       )}
 
-      {/* ===== Popup chọn ghế ===== */}
+      {/* Seat Selection Modal */}
       {isSeatModalOpen && selectedTicket && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-            {/* Header */}
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold text-gray-900">
                 Chọn ghế – {selectedTicket.name}
@@ -435,46 +370,23 @@ export default function EventDetail() {
             </div>
 
             <p className="text-sm text-gray-600 mb-3">
-              Sự kiện:{' '}
-              <span className="font-medium">{event.title}</span>
+              Sự kiện: <span className="font-medium">{event.title}</span>
             </p>
 
-            {loadingSeats && (
-              <p className="text-gray-500 mb-3">Đang tải danh sách ghế...</p>
+            {event && event.areaId ? (
+              <SeatGrid
+                eventId={event.eventId}
+                areaId={event.areaId}
+                token={token}
+                selectedSeat={selectedSeat}
+                onSeatSelect={setSelectedSeat}
+              />
+            ) : (
+              <p className="text-red-500 mb-3">
+                Sự kiện chưa cấu hình khu vực (areaId).
+              </p>
             )}
 
-            {seatError && (
-              <p className="text-red-500 mb-3">{seatError}</p>
-            )}
-
-            {!loadingSeats && !seatError && (
-              <>
-                {seats.length === 0 ? (
-                  <p className="text-gray-600 mb-4">
-                    Hiện không còn ghế trống trong khu vực này.
-                  </p>
-                ) : (
-                  <div className="grid grid-cols-4 gap-3 mb-6">
-                    {seats.map((seat) => (
-                      <button
-                        key={seat.seatId}
-                        type="button"
-                        onClick={() => setSelectedSeat(seat)}
-                        className={`border rounded-lg px-3 py-2 text-sm ${
-                          selectedSeat?.seatId === seat.seatId
-                            ? 'border-blue-600 bg-blue-50 font-semibold'
-                            : 'border-gray-300 hover:border-blue-400'
-                        }`}
-                      >
-                        {seat.seatCode || seat.seatId}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-
-            {/* Footer buttons */}
             <div className="flex justify-end gap-3 mt-4">
               <button
                 onClick={closeSeatModal}
