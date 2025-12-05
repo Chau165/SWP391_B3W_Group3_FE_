@@ -6,7 +6,7 @@ export default function EventEdit() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   
-  // Temporary - replace with API call later
+  // TODO: Fetch event details from API
   const event: any = null
 
   const [formData, setFormData] = useState({
@@ -43,10 +43,23 @@ export default function EventEdit() {
     }
   }, [event])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    alert('Cập nhật sự kiện thành công!')
-    navigate(`/events/${id}`)
+    // TODO: Replace with API call to update event
+    try {
+      // const response = await fetch(`/api/events/${id}`, {
+      //   method: 'PUT',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify(formData)
+      // })
+      // if (response.ok) {
+      //   navigate(`/events/${id}`)
+      // }
+      alert('Vui lòng kết nối API để cập nhật sự kiện')
+    } catch (error) {
+      console.error('Error updating event:', error)
+      alert('Lỗi kết nối API')
+    }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {

@@ -8,15 +8,15 @@ export default function Reports() {
   const [selectedEventId, setSelectedEventId] = useState<string>('')
   const [dateRange, setDateRange] = useState({ start: '', end: '' })
 
-  // Temporary - replace with API calls later
-  const mockEvents: any[] = []
+  // TODO: Fetch events and statistics from API
+  const events: any[] = []
   const selectedEvent: any = null
   const registrations: any[] = []
   const checkedInCount = registrations.filter((r: any) => r.checkedIn).length
   const notCheckedInCount = registrations.length - checkedInCount
 
   // Overall statistics
-  const totalEvents = mockEvents.length
+  const totalEvents = events.length
   const totalRegistrations = 0
   const totalCheckedIn = 0
 

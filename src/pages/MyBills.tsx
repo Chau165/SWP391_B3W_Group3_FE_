@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom'
 import { FileText, CreditCard, Eye } from 'lucide-react'
 
-type MockBill = {
+type Bill = {
   id: string
   createdAt: string
   totalAmount: number
   status: 'PENDING' | 'PAID' | 'CANCELED'
 }
 
-// Temporary mock data – replace with API later
-const mockBills: MockBill[] = []
+// TODO: Fetch bills from API
+const bills: Bill[] = []
 
 export default function MyBills() {
   return (
@@ -22,7 +22,7 @@ export default function MyBills() {
         </div>
       </div>
 
-      {mockBills.length === 0 ? (
+      {bills.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-10 text-center">
           <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">Bạn chưa có hóa đơn nào</p>
@@ -51,7 +51,7 @@ export default function MyBills() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {mockBills.map(bill => (
+              {bills.map(bill => (
                 <tr key={bill.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     #{bill.id}

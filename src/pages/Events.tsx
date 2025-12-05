@@ -8,7 +8,7 @@ export default function Events() {
   const { user } = useAuth()
   const isOrganizer = user?.role === 'ORGANIZER' || user?.role === 'STAFF'
 
-  // Temporary empty array - replace with API call later
+  // TODO: Fetch events from API
   const events: any[] = []
 
   return (

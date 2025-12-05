@@ -1,14 +1,14 @@
 import { UserCircle2, PlusCircle } from 'lucide-react'
 
-type MockOrganizer = {
+type Organizer = {
   id: string
   name: string
   email: string
   totalEvents: number
 }
 
-// Temporary mock – replace with API later
-const mockOrganizers: MockOrganizer[] = []
+// TODO: Fetch organizers from API
+const organizers: Organizer[] = []
 
 export default function Organizers() {
   return (
@@ -29,7 +29,7 @@ export default function Organizers() {
         </button>
       </div>
 
-      {mockOrganizers.length === 0 ? (
+      {organizers.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-10 text-center">
           <UserCircle2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">Chưa có Organizer nào</p>
@@ -55,7 +55,7 @@ export default function Organizers() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {mockOrganizers.map(org => (
+              {organizers.map(org => (
                 <tr key={org.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {org.name}

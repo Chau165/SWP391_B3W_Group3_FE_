@@ -7,7 +7,7 @@ import { vi } from 'date-fns/locale'
 export default function MyTickets() {
   const { user } = useAuth()
   
-  // Temporary - replace with API calls later
+  // TODO: Fetch user's ticket registrations from API
   const registrations: any[] = []
 
   return (
@@ -28,7 +28,7 @@ export default function MyTickets() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {registrations.map((registration: any) => {
-            // Temporary - replace with API call
+            // TODO: Event data should come from registration object or separate API call
             const event: any = null
             if (!event) return null
 

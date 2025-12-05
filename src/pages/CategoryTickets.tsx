@@ -1,6 +1,6 @@
 import { PlusCircle, Ticket } from 'lucide-react'
 
-type MockCategoryTicket = {
+type CategoryTicket = {
   id: string
   name: string
   price: number
@@ -8,8 +8,8 @@ type MockCategoryTicket = {
   status: 'ACTIVE' | 'INACTIVE'
 }
 
-// Temporary mock – replace with API later
-const mockCategories: MockCategoryTicket[] = []
+// TODO: Fetch category tickets from API
+const categories: CategoryTicket[] = []
 
 export default function CategoryTickets() {
   return (
@@ -30,7 +30,7 @@ export default function CategoryTickets() {
         </button>
       </div>
 
-      {mockCategories.length === 0 ? (
+      {categories.length === 0 ? (
         <div className="bg-white rounded-lg shadow-md p-10 text-center">
           <Ticket className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">Chưa có loại vé nào</p>
@@ -58,7 +58,7 @@ export default function CategoryTickets() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {mockCategories.map(cat => (
+              {categories.map(cat => (
                 <tr key={cat.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {cat.name}
