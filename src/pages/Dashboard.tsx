@@ -183,29 +183,43 @@ export default function Dashboard() {
                 <button
                   key={event.eventId}
                   onClick={() => openEventDetail(event.eventId)}
-                  className="w-full text-left block p-4 border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="w-full text-left block border rounded-lg hover:bg-gray-50 transition-colors cursor-pointer overflow-hidden"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {event.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                        {event.description}
-                      </p>
-                      <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-600">
-                        <div className="flex items-center">
+                  <div className="flex items-start">
+                    {/* Banner Image */}
+                    {event.bannerUrl ? (
+                      <img
+                        src={event.bannerUrl}
+                        alt={event.title}
+                        className="w-48 h-32 object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-48 h-32 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center flex-shrink-0">
+                        <Calendar className="w-12 h-12 text-blue-400" />
+                      </div>
+                    )}
+
+                    {/* Content */}
+                    <div className="flex-1 p-4 flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-gray-900 truncate">
+                          {event.title}
+                        </h3>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                          {event.description}
+                        </p>
+                        <div className="mt-2 flex items-center text-sm text-gray-600">
                           <Calendar className="w-4 h-4 mr-1" />
                           {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', {
                             locale: vi,
                           })}
                         </div>
                       </div>
-                    </div>
 
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                      {event.status}
-                    </span>
+                      <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium ml-4 flex-shrink-0">
+                        {event.status}
+                      </span>
+                    </div>
                   </div>
                 </button>
               ))}

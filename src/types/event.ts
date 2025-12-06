@@ -9,6 +9,7 @@ export interface EventListItem {
   endTime: string
   maxSeats: number
   status: string // OPEN / CLOSED / ...
+  bannerUrl?: string | null
 }
 
 // Chi tiết một sự kiện
