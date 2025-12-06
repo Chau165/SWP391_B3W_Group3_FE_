@@ -141,6 +141,17 @@ export function EventDetailModal({
 
             {!loading && !error && event && (
               <>
+                {/* Banner Image */}
+                {event.bannerUrl && (
+                  <div className="mb-6">
+                    <img
+                      src={event.bannerUrl}
+                      alt={event.title}
+                      className="w-full h-64 object-cover rounded-lg"
+                    />
+                  </div>
+                )}
+
                 {/* Description */}
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Mô tả</h3>

@@ -27,6 +27,7 @@ import CategoryTickets from './pages/CategoryTickets.tsx'
 import Organizers from './pages/Organizers.tsx'
 import Layout from './components/Layout.tsx'
 import GuestLanding from './pages/GuestLanding.tsx'
+import ImageUploadTest from './pages/ImageUploadTest.tsx'
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
@@ -70,6 +71,7 @@ function AppRoutes() {
         <Route path="category-tickets" element={<CategoryTickets />} />
         <Route path="organizers" element={<Organizers />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="image-upload-test" element={<ImageUploadTest />} />
       </Route>
       <Route path="/" element={<GuestLanding />} />
     </Routes>
