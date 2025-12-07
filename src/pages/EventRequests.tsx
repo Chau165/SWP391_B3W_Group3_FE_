@@ -62,7 +62,7 @@ export default function EventRequests() {
       const token = localStorage.getItem('token')
       // Staff sees all requests, Organizer sees only their own
       const endpoint = isStaff 
-        ? 'http://localhost:3000/api/organizer/event-requests'
+        ? 'http://localhost:3000/api/staff/event-requests'
         : 'http://localhost:3000/api/event-requests/my'
       
       const response = await fetch(endpoint, {
