@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { CheckCircle2, XCircle, FileClock, PlusCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { EventDetailModal } from '../components/events/EventDetailModal'
+import { ProcessRequestModal } from '../components/events/ProcessRequestModal'
 import type { EventDetail } from '../types/event'
 
 type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
@@ -12,8 +13,8 @@ type EventRequest = {
   title: string
   description?: string
   reason?: string
-  preferredStart?: string
-  preferredEnd?: string
+  preferredStartTime?: string
+  preferredEndTime?: string
   expectedParticipants?: number
   bannerUrl?: string
   studentName?: string
@@ -52,6 +53,9 @@ export default function EventRequests() {
   const [error, setError] = useState<string | null>(null)
   const [selectedRequest, setSelectedRequest] = useState<EventRequest | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isProcessModalOpen, setIsProcessModalOpen] = useState(false)
+  const [processAction, setProcessAction] = useState<'APPROVE' | 'REJECT'>('APPROVE')
+  const [requestToProcess, setRequestToProcess] = useState<EventRequest | null>(null)
 
   useEffect(() => {
     fetchEventRequests()
@@ -97,58 +101,30 @@ export default function EventRequests() {
     setSelectedRequest(null)
   }
 
-  const handleApprove = async (requestId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn duyệt yêu cầu này?')) {
-      return
-    }
-
-    try {
-      const token = localStorage.getItem('token')
-      const payload = {
-        requestId: requestId,
-        action: 'APPROVE',
-        organizerNote: '',
-        areaId: 0
-      }
-      console.log('Approve payload:', payload)
-      
-      const response = await fetch('http://localhost:3000/api/event-requests/process', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      })
-
-      if (response.ok) {
-        alert('Đã duyệt yêu cầu thành công!')
-        // Refresh the list
-        fetchEventRequests()
-      } else {
-        const errorData = await response.text()
-        throw new Error(errorData || 'Failed to approve request')
-      }
-    } catch (error) {
-      console.error('Error approving request:', error)
-      alert('Không thể duyệt yêu cầu. Vui lòng thử lại.')
-    }
+  const handleApprove = (request: EventRequest) => {
+    setRequestToProcess(request)
+    setProcessAction('APPROVE')
+    setIsProcessModalOpen(true)
   }
 
-  const handleReject = async (requestId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn từ chối yêu cầu này?')) {
-      return
-    }
+  const handleReject = (request: EventRequest) => {
+    setRequestToProcess(request)
+    setProcessAction('REJECT')
+    setIsProcessModalOpen(true)
+  }
+
+  const handleProcessRequest = async (areaId: number, organizerNote: string) => {
+    if (!requestToProcess) return
 
     try {
       const token = localStorage.getItem('token')
       const payload = {
-        requestId: requestId,
-        action: 'REJECT',
-        organizerNote: '',
-        areaId: 0
+        requestId: requestToProcess.requestId,
+        action: processAction,
+        organizerNote: organizerNote,
+        areaId: areaId
       }
-      console.log('Reject payload:', payload)
+      console.log('Process payload:', payload)
       
       const response = await fetch('http://localhost:3000/api/event-requests/process', {
         method: 'POST',
@@ -160,16 +136,15 @@ export default function EventRequests() {
       })
 
       if (response.ok) {
-        alert('Đã từ chối yêu cầu.')
-        // Refresh the list
+        alert(processAction === 'APPROVE' ? 'Đã duyệt yêu cầu thành công!' : 'Đã từ chối yêu cầu.')
         fetchEventRequests()
       } else {
         const errorData = await response.text()
-        throw new Error(errorData || 'Failed to reject request')
+        throw new Error(errorData || 'Failed to process request')
       }
     } catch (error) {
-      console.error('Error rejecting request:', error)
-      alert('Không thể từ chối yêu cầu. Vui lòng thử lại.')
+      console.error('Error processing request:', error)
+      alert('Không thể xử lý yêu cầu. Vui lòng thử lại.')
     }
   }
 
@@ -181,8 +156,8 @@ export default function EventRequests() {
       eventId: request.requestId,
       title: request.title,
       description: request.description || 'Chưa có mô tả',
-      startTime: request.preferredStart || new Date().toISOString(),
-      endTime: request.preferredEnd || new Date().toISOString(),
+      startTime: request.preferredStartTime || new Date().toISOString(),
+      endTime: request.preferredEndTime || new Date().toISOString(),
       location: 'Chưa xác định',
       maxSeats: request.expectedParticipants || 0,
       currentParticipants: 0,
@@ -313,14 +288,14 @@ export default function EventRequests() {
                       {req.status === 'PENDING' && (
                         <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                           <button
-                            onClick={() => handleApprove(req.requestId)}
+                            onClick={() => handleApprove(req)}
                             className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100"
                           >
                             <CheckCircle2 className="w-3 h-3 mr-1" />
                             Duyệt
                           </button>
                           <button
-                            onClick={() => handleReject(req.requestId)}
+                            onClick={() => handleReject(req)}
                             className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100"
                           >
                             <XCircle className="w-3 h-3 mr-1" />
@@ -344,6 +319,14 @@ export default function EventRequests() {
         loading={false}
         error={null}
         token={localStorage.getItem('token')}
+      />
+
+      <ProcessRequestModal
+        isOpen={isProcessModalOpen}
+        onClose={() => setIsProcessModalOpen(false)}
+        onSubmit={handleProcessRequest}
+        action={processAction}
+        request={requestToProcess}
       />
     </div>
   )
