@@ -93,6 +93,12 @@ export default function Layout() {
               {isStaff && (
                 <>
                   <Link
+                    to="/dashboard/venues"
+                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  >
+                    Địa điểm
+                  </Link>
+                  <Link
                     to="/dashboard/check-in"
                     className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
                   >
@@ -207,6 +213,13 @@ export default function Layout() {
               )}
               {isStaff && (
                 <>
+                  <Link
+                    to="/dashboard/venues"
+                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Địa điểm
+                  </Link>
                   <Link
                     to="/dashboard/check-in"
                     className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
