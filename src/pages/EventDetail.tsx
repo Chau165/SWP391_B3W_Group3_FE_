@@ -30,6 +30,8 @@ export default function EventDetail() {
   const [isSeatModalOpen, setIsSeatModalOpen] = useState(false)
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
+  const [allSeats, setAllSeats] = useState<Seat[]>([])
+  const [loadingSeats, setLoadingSeats] = useState(false)
 
   useEffect(() => {
     if (!id) {
@@ -86,10 +88,34 @@ export default function EventDetail() {
     fetchDetail()
   }, [id])
 
-  const openSeatModal = (ticket: Ticket) => {
+  const openSeatModal = async (ticket: Ticket) => {
     setSelectedTicket(ticket)
     setIsSeatModalOpen(true)
     setSelectedSeat(null)
+    
+    // Fetch seats when modal opens
+    if (event?.areaId && event?.eventId) {
+      setLoadingSeats(true)
+      try {
+        const res = await fetch(
+          `/api/seats?areaId=${event.areaId}&eventId=${event.eventId}`,
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          }
+        )
+        
+        if (res.ok) {
+          const data = await res.json()
+          const seatsArray = data.seats || []
+          const sortedSeats = seatsArray.sort((a: any, b: any) => (a.seatId || 0) - (b.seatId || 0))
+          setAllSeats(sortedSeats)
+        }
+      } catch (err) {
+        console.error('Error fetching seats:', err)
+      } finally {
+        setLoadingSeats(false)
+      }
+    }
   }
 
   const closeSeatModal = () => {
@@ -375,9 +401,8 @@ export default function EventDetail() {
 
             {event && event.areaId ? (
               <SeatGrid
-                eventId={event.eventId}
-                areaId={event.areaId}
-                token={token}
+                seats={allSeats}
+                loading={loadingSeats}
                 selectedSeat={selectedSeat}
                 onSeatSelect={setSelectedSeat}
               />

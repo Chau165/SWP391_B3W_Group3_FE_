@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { CheckCircle2, XCircle, FileClock, PlusCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -20,6 +20,7 @@ type EventRequest = {
   studentName?: string
   createdAt: string
   status: EventRequestStatus
+  createdEventId?: number
 }
 
 const getStatusLabel = (status: EventRequestStatus) => {
@@ -46,6 +47,7 @@ const getStatusClass = (status: EventRequestStatus) => {
 
 export default function EventRequests() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const isStaff = user?.role === 'STAFF'
   const isOrganizer = user?.role === 'ORGANIZER'
   const [requests, setRequests] = useState<EventRequest[]>([])
@@ -99,6 +101,17 @@ export default function EventRequests() {
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setSelectedRequest(null)
+  }
+
+  const handleEditEvent = () => {
+    if (!selectedRequest) return
+    
+    // For approved events, use createdEventId; otherwise use requestId
+    const eventId = selectedRequest.status === 'APPROVED' && selectedRequest.createdEventId 
+      ? selectedRequest.createdEventId 
+      : selectedRequest.requestId
+    
+    navigate(`/dashboard/events/${eventId}/edit`)
   }
 
   const handleApprove = (request: EventRequest) => {
@@ -319,6 +332,8 @@ export default function EventRequests() {
         loading={false}
         error={null}
         token={localStorage.getItem('token')}
+        userRole={user?.role}
+        onEdit={handleEditEvent}
       />
 
       <ProcessRequestModal

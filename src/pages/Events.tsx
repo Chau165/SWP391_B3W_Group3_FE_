@@ -13,7 +13,7 @@ type ViewMode = 'list' | 'calendar'
 export default function Events() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const isOrganizer = user?.role === 'ORGANIZER' || user?.role === 'STAFF'
+  const isOrganizer = user?.role === 'ORGANIZER'
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
   const [events, setEvents] = useState<EventListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,9 +84,10 @@ export default function Events() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Danh sách sự kiện</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Danh sách sự kiện</h1>
+          
           {/* View Toggle */}
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
@@ -112,16 +113,16 @@ export default function Events() {
               Danh sách
             </button>
           </div>
-
-          {isOrganizer && (
-            <Link
-              to="/dashboard/events/create"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Tạo sự kiện mới
-            </Link>
-          )}
         </div>
+
+        {isOrganizer && (
+          <Link
+            to="/dashboard/events/create"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Tạo sự kiện mới
+          </Link>
+        )}
       </div>
 
       {loading ? (

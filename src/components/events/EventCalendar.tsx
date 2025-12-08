@@ -170,10 +170,27 @@ export function EventCalendar({ events, onEventClick }: EventCalendarProps) {
                     <button
                       key={event.eventId}
                       onClick={() => onEventClick?.(event)}
-                      className="w-full text-left px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded text-xs text-blue-800 truncate transition-colors"
+                      className="w-full text-left rounded overflow-hidden transition-all hover:ring-2 hover:ring-blue-400"
                       title={event.title}
                     >
-                      {event.title}
+                      {event.bannerUrl ? (
+                        <div className="relative">
+                          <img
+                            src={event.bannerUrl}
+                            alt={event.title}
+                            className="w-full h-16 object-cover"
+                          />
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-1">
+                            <p className="text-xs text-white font-medium truncate">
+                              {event.title}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded text-xs text-blue-800 truncate">
+                          {event.title}
+                        </div>
+                      )}
                     </button>
                   ))}
                   {dayEvents.length > 2 && (

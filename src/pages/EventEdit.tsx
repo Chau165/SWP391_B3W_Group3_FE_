@@ -1,82 +1,223 @@
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Upload, X, Plus, Trash2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { uploadEventBanner, validateImageFile } from '../utils/imageUpload'
+
+type TicketType = 'VIP' | 'STANDARD'
+
+type Ticket = {
+  name: TicketType
+  description: string
+  price: number
+  maxQuantity: number
+  status: 'ACTIVE'
+}
 
 export default function EventEdit() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   
-  // TODO: Fetch event details from API
-  const event: any = null
-
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    organizer: '',
-    organizerType: 'Club' as 'Club' | 'Department',
-    eventType: 'Workshop' as 'Workshop' | 'Talkshow' | 'Other',
-    startDate: '',
-    endDate: '',
-    location: '',
-    maxParticipants: '',
-    hasSeating: false,
-    totalSeats: '',
-    imageUrl: ''
+  const [loading, setLoading] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  const [speaker, setSpeaker] = useState({
+    fullName: '',
+    bio: '',
+    email: '',
+    phone: '',
+    avatarUrl: ''
   })
 
+  const [tickets, setTickets] = useState<Ticket[]>([
+    { name: 'VIP', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' },
+    { name: 'STANDARD', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' }
+  ])
+
+  const [bannerUrl, setBannerUrl] = useState('')
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
   useEffect(() => {
-    if (event) {
-      setFormData({
-        title: event.title,
-        description: event.description,
-        organizer: event.organizer,
-        organizerType: event.organizerType,
-        eventType: event.eventType,
-        startDate: event.startDate.slice(0, 16),
-        endDate: event.endDate.slice(0, 16),
-        location: event.location,
-        maxParticipants: event.maxParticipants.toString(),
-        hasSeating: event.hasSeating,
-        totalSeats: event.totalSeats?.toString() || '',
-        imageUrl: event.imageUrl || ''
+    fetchEventDetails()
+  }, [id])
+
+  const fetchEventDetails = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`http://localhost:3000/api/events/detail?id=${id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
       })
+
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Event details:', data)
+        
+        // Pre-fill form if data exists
+        if (data.bannerUrl) {
+          setBannerUrl(data.bannerUrl)
+          setImagePreview(data.bannerUrl)
+        }
+      } else {
+        throw new Error('Failed to fetch event details')
+      }
+    } catch (error) {
+      console.error('Error fetching event:', error)
+      setError('Không thể tải thông tin sự kiện')
+    } finally {
+      setLoading(false)
     }
-  }, [event])
+  }
+
+  const handleSpeakerChange = (field: keyof typeof speaker, value: string) => {
+    setSpeaker(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleTicketChange = (index: number, field: keyof Ticket, value: string | number) => {
+    setTickets(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [field]: value }
+      return updated
+    })
+  }
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid file')
+      return
+    }
+
+    setSelectedImage(file)
+    setError(null)
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    setBannerUrl('')
+    setError(null)
+  }
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid file')
+      return
+    }
+
+    setSelectedImage(file)
+    setError(null)
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Replace with API call to update event
+    setIsSubmitting(true)
+    setError(null)
+
     try {
-      // const response = await fetch(`/api/events/${id}`, {
-      //   method: 'PUT',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // })
-      // if (response.ok) {
-      //   navigate(`/events/${id}`)
-      // }
-      alert('Vui lòng kết nối API để cập nhật sự kiện')
+      // Validate all maxQuantity values are multiples of 10
+      for (const ticket of tickets) {
+        if (ticket.maxQuantity % 10 !== 0) {
+          setError(`Số lượng tối đa của vé ${ticket.name} phải là bội số của 10 (10, 20, 30, ...)`)
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      // Upload image if selected
+      let finalBannerUrl = bannerUrl
+      if (selectedImage) {
+        finalBannerUrl = await uploadEventBanner(selectedImage)
+      }
+
+      const token = localStorage.getItem('token')
+      const requestBody = {
+        eventId: parseInt(id!),
+        speaker: {
+          fullName: speaker.fullName,
+          bio: speaker.bio,
+          email: speaker.email,
+          phone: speaker.phone,
+          avatarUrl: speaker.avatarUrl
+        },
+        tickets: tickets.map(ticket => ({
+          name: ticket.name,
+          description: ticket.description,
+          price: Number(ticket.price),
+          maxQuantity: Number(ticket.maxQuantity),
+          status: 'ACTIVE'
+        })),
+        bannerUrl: finalBannerUrl
+      }
+
+      console.log('Updating event with:', requestBody)
+
+      const response = await fetch(`http://localhost:3000/api/events/update-details`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      if (response.ok) {
+        alert('Cập nhật sự kiện thành công!')
+        navigate('/dashboard/events')
+      } else {
+        const errorData = await response.text()
+        throw new Error(errorData || 'Failed to update event')
+      }
     } catch (error) {
       console.error('Error updating event:', error)
-      alert('Lỗi kết nối API')
+      setError(error instanceof Error ? error.message : 'Không thể cập nhật sự kiện')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value, type } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
-    }))
-  }
-
-  if (!event) {
+  if (loading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">Không tìm thấy sự kiện</p>
-        <Link to="/events" className="text-blue-600 mt-4 inline-block">
-          Quay lại danh sách
-        </Link>
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-gray-500">Đang tải...</p>
       </div>
     )
   }
@@ -84,209 +225,219 @@ export default function EventEdit() {
   return (
     <div>
       <Link
-        to={`/events/${id}`}
+        to="/dashboard/events"
         className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
         Quay lại
       </Link>
 
-      <div className="bg-white rounded-lg shadow-md p-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-6">Chỉnh sửa sự kiện</h1>
+      <div className="bg-white rounded-lg shadow-md p-8 max-w-4xl">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+          Cập nhật thông tin sự kiện
+        </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tên sự kiện *
-            </label>
-            <input
-              type="text"
-              name="title"
-              value={formData.title}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Speaker Information */}
+          <div className="border-b pb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Thông tin diễn giả</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Họ và tên *
+                </label>
+                <input
+                  type="text"
+                  value={speaker.fullName}
+                  onChange={(e) => handleSpeakerChange('fullName', e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Mô tả *
-            </label>
-            <textarea
-              name="description"
-              value={formData.description}
-              onChange={handleChange}
-              required
-              rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tiểu sử *
+                </label>
+                <textarea
+                  value={speaker.bio}
+                  onChange={(e) => handleSpeakerChange('bio', e.target.value)}
+                  required
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Người tổ chức *
-              </label>
-              <input
-                type="text"
-                name="organizer"
-                value={formData.organizer}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={speaker.email}
+                    onChange={(e) => handleSpeakerChange('email', e.target.value)}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Số điện thoại *
+                  </label>
+                  <input
+                    type="tel"
+                    value={speaker.phone}
+                    onChange={(e) => handleSpeakerChange('phone', e.target.value)}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URL ảnh đại diện (tùy chọn)
+                </label>
+                <input
+                  type="url"
+                  value={speaker.avatarUrl}
+                  onChange={(e) => handleSpeakerChange('avatarUrl', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
             </div>
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Loại tổ chức *
-              </label>
-              <select
-                name="organizerType"
-                value={formData.organizerType}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          {/* Tickets */}
+          <div className="border-b pb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Thông tin vé</h2>
+            
+            {tickets.map((ticket, index) => (
+              <div key={ticket.name} className="mb-6 p-4 border border-gray-200 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3">
+                  Vé {ticket.name}
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mô tả *
+                    </label>
+                    <textarea
+                      value={ticket.description}
+                      onChange={(e) => handleTicketChange(index, 'description', e.target.value)}
+                      required
+                      rows={2}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Giá (VNĐ) *
+                      </label>
+                      <input
+                        type="number"
+                        value={ticket.price}
+                        onChange={(e) => handleTicketChange(index, 'price', e.target.value)}
+                        required
+                        min="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Số lượng tối đa * (bội số của 10)
+                      </label>
+                      <input
+                        type="number"
+                        value={ticket.maxQuantity}
+                        onChange={(e) => handleTicketChange(index, 'maxQuantity', e.target.value)}
+                        required
+                        min="10"
+                        step="10"
+                        placeholder="10, 20, 30, ..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Banner Image */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Banner sự kiện *
+            </label>
+            
+            {!imagePreview ? (
+              <div 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDragging 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-300 hover:border-blue-400'
+                }`}
               >
-                <option value="Club">CLB</option>
-                <option value="Department">Phòng ban</option>
-              </select>
-            </div>
+                <input
+                  type="file"
+                  id="banner-upload"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <label htmlFor="banner-upload" className="cursor-pointer">
+                  <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600 mb-2">Kéo thả ảnh hoặc click để chọn</p>
+                  <p className="text-sm text-gray-500">PNG, JPG, GIF tối đa 5MB</p>
+                </label>
+              </div>
+            ) : (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Loại sự kiện *
-            </label>
-            <select
-              name="eventType"
-              value={formData.eventType}
-              onChange={handleChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="Workshop">Workshop</option>
-              <option value="Talkshow">Talkshow</option>
-              <option value="Other">Khác</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Thời gian bắt đầu *
-              </label>
-              <input
-                type="datetime-local"
-                name="startDate"
-                value={formData.startDate}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Thời gian kết thúc *
-              </label>
-              <input
-                type="datetime-local"
-                name="endDate"
-                value={formData.endDate}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Địa điểm *
-            </label>
-            <input
-              type="text"
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Số lượng người tham gia tối đa *
-              </label>
-              <input
-                type="number"
-                name="maxParticipants"
-                value={formData.maxParticipants}
-                onChange={handleChange}
-                required
-                min="1"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                URL hình ảnh
-              </label>
-              <input
-                type="url"
-                name="imageUrl"
-                value={formData.imageUrl}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              name="hasSeating"
-              id="hasSeating"
-              checked={formData.hasSeating}
-              onChange={handleChange}
-              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-            />
-            <label htmlFor="hasSeating" className="ml-2 text-sm font-medium text-gray-700">
-              Có quản lý ghế ngồi
-            </label>
-          </div>
-
-          {formData.hasSeating && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tổng số ghế
-              </label>
-              <input
-                type="number"
-                name="totalSeats"
-                value={formData.totalSeats}
-                onChange={handleChange}
-                min="1"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
 
-          <div className="flex space-x-4 pt-4">
-            <button
-              type="button"
-              onClick={() => navigate(`/events/${id}`)}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+          <div className="flex justify-end gap-4 pt-4">
+            <Link
+              to="/dashboard/events"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Hủy
-            </button>
+            </Link>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
             >
-              Cập nhật
+              {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật sự kiện'}
             </button>
           </div>
         </form>
@@ -294,6 +445,5 @@ export default function EventEdit() {
     </div>
   )
 }
-
 
 

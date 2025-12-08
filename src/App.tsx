@@ -6,7 +6,6 @@ import ResetPassword from './pages/ResetPassword.tsx'
 import Dashboard from './pages/Dashboard.tsx'
 import Events from './pages/Events.tsx'
 import EventDetail from './pages/EventDetail.tsx'
-import EventCreate from './pages/EventCreate.tsx'
 import EventEdit from './pages/EventEdit.tsx'
 import MyTickets from './pages/MyTickets.tsx'
 import TicketDetail from './pages/TicketDetail.tsx'
@@ -51,7 +50,7 @@ function AppRoutes() {
         <Route index element={<Dashboard />} />
         <Route path="events" element={<Events />} />
         <Route path="events/:id" element={<EventDetail />} />
-        <Route path="events/create" element={<EventCreate />} />
+        <Route path="events/create" element={<EventRequestCreate />} />
         <Route path="events/:id/edit" element={<EventEdit />} />
         <Route path="my-tickets" element={<MyTickets />} />
         <Route path="tickets/:id" element={<TicketDetail />} />

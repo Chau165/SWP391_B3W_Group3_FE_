@@ -21,6 +21,8 @@ interface EventDetailModalProps {
   loading: boolean
   error: string | null
   token: string | null
+  userRole?: string
+  onEdit?: () => void
 }
 
 export function EventDetailModal({
@@ -30,13 +32,15 @@ export function EventDetailModal({
   loading,
   error,
   token,
+  userRole,
+  onEdit,
 }: EventDetailModalProps) {
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
   const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
-  const [vipSeats, setVipSeats] = useState<Seat[]>([])
-  const [standardSeats, setStandardSeats] = useState<Seat[]>([])
+  const [allSeats, setAllSeats] = useState<Seat[]>([])
+  const [vipTotal, setVipTotal] = useState<number>(0)
+  const [standardTotal, setStandardTotal] = useState<number>(0)
   const [loadingSeats, setLoadingSeats] = useState(false)
-  const [seatsError, setSeatsError] = useState<string | null>(null)
 
   // Fetch seats when event detail loads
   useEffect(() => {
@@ -44,18 +48,31 @@ export function EventDetailModal({
       if (!event || !event.areaId || !token) return
 
       setLoadingSeats(true)
-      setSeatsError(null)
 
       try {
-        // Fetch both VIP and STANDARD seats
+        // Fetch all seats for display
+        const seatsRes = await fetch(`http://localhost:3000/api/seats?areaId=${event.areaId}&eventId=${event.eventId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        })
+
+        if (seatsRes.ok) {
+          const seatsData = await seatsRes.json()
+          console.log('All seats data:', seatsData)
+          setAllSeats(seatsData.seats || [])
+        }
+
+        // Fetch VIP and STANDARD totals separately
         const [vipRes, standardRes] = await Promise.all([
-          fetch(`/api/seats?areaId=${event.areaId}&eventId=${event.eventId}&seatType=VIP`, {
+          fetch(`http://localhost:3000/api/seats?areaId=${event.areaId}&eventId=${event.eventId}&seatType=VIP`, {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
             },
           }),
-          fetch(`/api/seats?areaId=${event.areaId}&eventId=${event.eventId}&seatType=STANDARD`, {
+          fetch(`http://localhost:3000/api/seats?areaId=${event.areaId}&eventId=${event.eventId}&seatType=STANDARD`, {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
@@ -65,16 +82,17 @@ export function EventDetailModal({
 
         if (vipRes.ok) {
           const vipData = await vipRes.json()
-          setVipSeats(vipData.seats || [])
+          console.log('VIP total:', vipData.total)
+          setVipTotal(vipData.total || 0)
         }
 
         if (standardRes.ok) {
           const standardData = await standardRes.json()
-          setStandardSeats(standardData.seats || [])
+          console.log('STANDARD total:', standardData.total)
+          setStandardTotal(standardData.total || 0)
         }
       } catch (err: any) {
         console.error('Error loading seats:', err)
-        setSeatsError('Không thể tải danh sách ghế')
       } finally {
         setLoadingSeats(false)
       }
@@ -96,8 +114,9 @@ export function EventDetailModal({
   const handleClose = () => {
     setSelectedTicket(null)
     setSelectedSeat(null)
-    setVipSeats([])
-    setStandardSeats([])
+    setAllSeats([])
+    setVipTotal(0)
+    setStandardTotal(0)
     onClose()
   }
 
@@ -260,9 +279,12 @@ export function EventDetailModal({
                     <div className="space-y-2">
                       {event.tickets.map((ticket) => {
                         const isVIP = ticket.name.toUpperCase().includes('VIP')
-                        const availableSeats = isVIP ? vipSeats : standardSeats
-                        const remainingQuantity = availableSeats.filter(
-                          s => s.status === 'AVAILABLE' || s.status === 'ACTIVE'
+                        const total = isVIP ? vipTotal : standardTotal
+                        const availableCount = allSeats.filter(
+                          (s: Seat) => {
+                            const seatIsVIP = s.seatType === 'VIP'
+                            return seatIsVIP === isVIP && (s.status === 'AVAILABLE' || s.status === 'ACTIVE')
+                          }
                         ).length
                         
                         return (
@@ -273,7 +295,7 @@ export function EventDetailModal({
                             <div>
                               <p className="font-medium">{ticket.name}</p>
                               <p className="text-sm text-gray-600">
-                                Còn lại: {remainingQuantity}/{ticket.maxQuantity}
+                                Còn lại: {availableCount}/{total}
                               </p>
                             </div>
                             <p className="font-semibold text-lg text-gray-900">
@@ -293,36 +315,29 @@ export function EventDetailModal({
                       Chọn ghế
                     </h3>
                     
-                    {loadingSeats ? (
-                      <p className="text-gray-500 text-center py-4">Đang tải ghế...</p>
-                    ) : seatsError ? (
-                      <p className="text-red-500 text-center py-4">{seatsError}</p>
-                    ) : (
-                      <SeatGrid
-                        eventId={event.eventId}
-                        areaId={event.areaId}
-                        token={token}
-                        selectedSeat={selectedSeat}
-                        onSeatSelect={(seat) => {
-                          setSelectedSeat(seat)
-                          // Auto-select ticket based on seat type
-                          const ticket = event.tickets?.find(t => {
-                            const isVIPTicket = t.name.toUpperCase().includes('VIP')
-                            const isVIPSeat = seat?.seatType === 'VIP'
-                            return isVIPTicket === isVIPSeat
+                    <SeatGrid
+                      seats={allSeats}
+                      loading={loadingSeats}
+                      selectedSeat={selectedSeat}
+                      onSeatSelect={(seat) => {
+                        setSelectedSeat(seat)
+                        // Auto-select ticket based on seat type
+                        const ticket = event.tickets?.find(t => {
+                          const isVIPTicket = t.name.toUpperCase().includes('VIP')
+                          const isVIPSeat = seat?.seatType === 'VIP'
+                          return isVIPTicket === isVIPSeat
+                        })
+                        if (ticket) {
+                          setSelectedTicket({
+                            categoryTicketId: ticket.categoryTicketId,
+                            name: ticket.name,
+                            price: ticket.price,
+                            maxQuantity: ticket.maxQuantity,
+                            status: ticket.status,
                           })
-                          if (ticket) {
-                            setSelectedTicket({
-                              categoryTicketId: ticket.categoryTicketId,
-                              name: ticket.name,
-                              price: ticket.price,
-                              maxQuantity: ticket.maxQuantity,
-                              status: ticket.status,
-                            })
-                          }
-                        }}
-                      />
-                    )}
+                        }
+                      }}
+                    />
                   </div>
                 )}
 
@@ -342,6 +357,14 @@ export function EventDetailModal({
                     )}
                   </div>
                   <div className="flex gap-3">
+                    {userRole === 'ORGANIZER' && event.status === 'APPROVED' && onEdit && (
+                      <button
+                        onClick={onEdit}
+                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Cập nhật thông tin
+                      </button>
+                    )}
                     <button
                       onClick={handleClose}
                       className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

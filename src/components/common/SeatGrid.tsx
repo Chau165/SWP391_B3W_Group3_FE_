@@ -1,5 +1,5 @@
 // src/components/common/SeatGrid.tsx
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 
 export type Seat = {
   seatId: number
@@ -12,78 +12,14 @@ export type Seat = {
 }
 
 interface SeatGridProps {
-  eventId: number
-  areaId: number
-  seatType?: string // Optional: 'VIP' or 'STANDARD'
-  token?: string | null
+  seats: Seat[]
+  loading?: boolean
   selectedSeat: Seat | null
   onSeatSelect: (seat: Seat | null) => void
 }
 
-export function SeatGrid({ eventId, areaId, seatType, token, selectedSeat, onSeatSelect }: SeatGridProps) {
-  const [seats, setSeats] = useState<Seat[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchSeats = async () => {
-      setLoading(true)
-      setError(null)
-
-      try {
-        const params = new URLSearchParams({
-          areaId: String(areaId),
-          eventId: String(eventId),
-        })
-        
-        // Add seatType if provided
-        if (seatType) {
-          params.append('seatType', seatType)
-        }
-
-        const res = await fetch(`/api/seats?${params.toString()}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        })
-
-        if (!res.ok) {
-          let msg = `Không thể tải danh sách ghế (HTTP ${res.status})`
-          try {
-            const data = await res.json()
-            if (data && typeof data === 'object' && 'error' in data) {
-              msg = (data as any).error || msg
-            }
-          } catch {
-            // ignore
-          }
-          throw new Error(msg)
-        }
-
-        const data = await res.json()
-        console.log('Seat API Response:', data) // Debug log
-        
-        // API returns: { areaId, total, seats: [...] }
-        const seatsArray = data.seats || []
-        
-        console.log('Seats from API:', seatsArray) // Debug log
-        console.log('First seat structure:', seatsArray[0]) // Debug log to see actual properties
-        
-        // Sort seats by ID in ascending order (1 -> infinity)
-        const sortedSeats = seatsArray.sort((a: any, b: any) => (a.seatId || 0) - (b.seatId || 0))
-        setSeats(sortedSeats)
-      } catch (err: any) {
-        console.error('Lỗi load seats:', err)
-        setError(err?.message ?? 'Không thể tải danh sách ghế')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchSeats()
-  }, [eventId, areaId, seatType, token])
+export function SeatGrid({ seats, loading = false, selectedSeat, onSeatSelect }: SeatGridProps) {
+  const [error] = useState<string | null>(null)
 
   if (loading) {
     return <p className="text-gray-500 mb-3">Đang tải danh sách ghế...</p>
@@ -93,8 +29,8 @@ export function SeatGrid({ eventId, areaId, seatType, token, selectedSeat, onSea
     return <p className="text-red-500 mb-3">{error}</p>
   }
 
-  console.log('Seats state:', seats) // Debug log
-  console.log('Seats length:', seats.length) // Debug log
+  console.log('Seats state:', seats)
+  console.log('Seats length:', seats.length)
 
   if (seats.length === 0) {
     return (
@@ -134,8 +70,8 @@ export function SeatGrid({ eventId, areaId, seatType, token, selectedSeat, onSea
   const getSeatColor = (seat: Seat, isSelected: boolean) => {
     if (isSelected) return 'border-blue-600 bg-blue-100 font-semibold'
     
-    // Reserved and occupied seats are red
-    if (seat.status === 'RESERVED' || seat.status === 'OCCUPIED') {
+    // Reserved, booked, and occupied seats are red
+    if (seat.status === 'RESERVED' || seat.status === 'OCCUPIED' || seat.status === 'BOOKED') {
       return 'border-red-300 bg-red-50 cursor-not-allowed'
     }
     
@@ -163,8 +99,8 @@ export function SeatGrid({ eventId, areaId, seatType, token, selectedSeat, onSea
                     <button
                       key={seat.seatId}
                       type="button"
-                      onClick={() => seat.status !== 'OCCUPIED' && seat.status !== 'RESERVED' && onSeatSelect(seat)}
-                      disabled={seat.status === 'OCCUPIED' || seat.status === 'RESERVED'}
+                      onClick={() => seat.status !== 'OCCUPIED' && seat.status !== 'RESERVED' && seat.status !== 'BOOKED' && onSeatSelect(seat)}
+                      disabled={seat.status === 'OCCUPIED' || seat.status === 'RESERVED' || seat.status === 'BOOKED'}
                       className={`w-12 h-10 border-2 rounded-lg text-xs font-medium transition-colors ${
                         getSeatColor(seat, selectedSeat?.seatId === seat.seatId)
                       }`}
