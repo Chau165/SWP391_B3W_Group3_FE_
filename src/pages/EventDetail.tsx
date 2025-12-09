@@ -1,434 +1,225 @@
-// src/pages/EventDetail.tsx
-import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Calendar, Users, MapPin, Clock, ArrowLeft } from 'lucide-react'
+import { Calendar, MapPin, Users, ArrowLeft, Edit, Ticket } from 'lucide-react'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import type { EventDetail } from '../types/event'
-import { SeatGrid, type Seat } from '../components/common/SeatGrid'
-
-type Ticket = {
-  categoryTicketId: number
-  name: string
-  price: number
-  maxQuantity: number
-  status: string
-}
+import { useState } from 'react'
 
 export default function EventDetail() {
-  const { id } = useParams<{ id: string }>()
-  const token = localStorage.getItem('token')
-  useAuth()
+  const { user } = useAuth()
 
-  const [event, setEvent] = useState<EventDetail | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [notFound, setNotFound] = useState(false)
+  
+  // TODO: Fetch event details and registrations from API
+  const event: any = null
+  const registrations: any[] = []
+  
+  const [showRegisterModal, setShowRegisterModal] = useState(false)
+  const [selectedSeat, setSelectedSeat] = useState<string>('')
 
-  // Seat selection modal state
-  const [isSeatModalOpen, setIsSeatModalOpen] = useState(false)
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null)
-  const [selectedSeat, setSelectedSeat] = useState<Seat | null>(null)
-  const [allSeats, setAllSeats] = useState<Seat[]>([])
-  const [loadingSeats, setLoadingSeats] = useState(false)
+  const isOrganizer = user?.role === 'ORGANIZER' || user?.role === 'STAFF'
+  const isRegistered = registrations.some((r: any) => r.userId === String(user?.id))
+  const canRegister = event && event.status === 'Upcoming' && !isRegistered && event.currentParticipants < event.maxParticipants
 
-  useEffect(() => {
-    if (!id) {
-      setError('Không có mã sự kiện trên đường dẫn')
-      setLoading(false)
+  if (!event) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-500">Không tìm thấy sự kiện</p>
+        <Link to="/events" className="text-blue-600 mt-4 inline-block">
+          Quay lại danh sách
+        </Link>
+      </div>
+    )
+  }
+
+  const handleRegister = async () => {
+    if (event.hasSeating && !selectedSeat) {
+      alert('Vui lòng chọn ghế')
       return
     }
-
-    const fetchDetail = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-        setNotFound(false)
-
-        const res = await fetch(`/api/events/detail?id=${id}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-
-        if (res.status === 404) {
-          setEvent(null)
-          setNotFound(true)
-          return
-        }
-
-        if (!res.ok) {
-          if (res.status === 401) {
-            throw new Error('Token không hợp lệ hoặc đã hết hạn, vui lòng đăng nhập lại')
-          }
-
-          let msg = `Lỗi khi tải chi tiết sự kiện (HTTP ${res.status})`
-          try {
-            const data = await res.json()
-            if (data && typeof data === 'object' && 'message' in data) {
-              msg = (data as any).message || msg
-            }
-          } catch {}
-
-          throw new Error(msg)
-        }
-
-        const data: EventDetail = await res.json()
-        setEvent(data)
-      } catch (err: any) {
-        console.error('Lỗi load event detail:', err)
-        setError(err?.message ?? 'Không thể tải chi tiết sự kiện')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchDetail()
-  }, [id])
-
-  const openSeatModal = async (ticket: Ticket) => {
-    setSelectedTicket(ticket)
-    setIsSeatModalOpen(true)
-    setSelectedSeat(null)
-    
-    // Fetch seats when modal opens
-    if (event?.areaId && event?.eventId) {
-      setLoadingSeats(true)
-      try {
-        const res = await fetch(
-          `/api/seats?areaId=${event.areaId}&eventId=${event.eventId}`,
-          {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-          }
-        )
-        
-        if (res.ok) {
-          const data = await res.json()
-          const seatsArray = data.seats || []
-          const sortedSeats = seatsArray.sort((a: any, b: any) => (a.seatId || 0) - (b.seatId || 0))
-          setAllSeats(sortedSeats)
-        }
-      } catch (err) {
-        console.error('Error fetching seats:', err)
-      } finally {
-        setLoadingSeats(false)
-      }
+    // TODO: Replace with API call to register for event
+    try {
+      // const response = await fetch('/api/events/register', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ eventId: id, seatId: selectedSeat })
+      // })
+      // if (response.ok) {
+      //   navigate('/my-tickets')
+      // }
+      alert('Vui lòng kết nối API để đăng ký sự kiện')
+    } catch (error) {
+      console.error('Error registering for event:', error)
+      alert('Lỗi kết nối API')
     }
   }
 
-  const closeSeatModal = () => {
-    setIsSeatModalOpen(false)
-    setSelectedTicket(null)
-    setSelectedSeat(null)
-  }
-
-  const confirmSeat = () => {
-    if (!selectedSeat || !selectedTicket || !event) return
-
-    // TODO: Call API to reserve seat + create order
-    // For now, redirect to payment page
-    window.location.href = '/dashboard/payment'
-  }
-
-  // ===== UI: Loading =====
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Đang tải chi tiết sự kiện...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // ===== UI: Error =====
-  if (error) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-4">
-          <p className="text-red-600 font-medium mb-2">Có lỗi xảy ra</p>
-          <p className="text-red-500">{error}</p>
-        </div>
-        <Link
-          to="/events"
-          className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Quay lại danh sách sự kiện
-        </Link>
-      </div>
-    )
-  }
-
-  // ===== UI: Not found =====
-  if (notFound || !event) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-4">
-          <p className="text-yellow-800 font-medium">
-            Không tìm thấy sự kiện hoặc sự kiện không còn khả dụng.
-          </p>
-        </div>
-        <Link
-          to="/events"
-          className="inline-flex items-center text-blue-600 hover:text-blue-700 font-medium"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Quay lại danh sách sự kiện
-        </Link>
-      </div>
-    )
-  }
-
-  // ===== UI chính =====
   return (
-    <div className="max-w-4xl mx-auto p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <Link
-          to="/events"
-          className="inline-flex items-center text-gray-600 hover:text-gray-800 mb-4 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-1" />
-          Quay lại
-        </Link>
-        <h1 className="text-3xl font-bold text-gray-900 mt-2">
-          {event.title}
-        </h1>
-      </div>
+    <div>
+      <Link
+        to="/events"
+        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Quay lại
+      </Link>
 
-      {/* Main Content Card */}
-      <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-        <div className="mb-8">
-          <h3 className="text-xl font-semibold text-gray-900 mb-3">Mô tả</h3>
-          <p className="text-gray-700 leading-relaxed">{event.description}</p>
-        </div>
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        {event.imageUrl && (
+          <img
+            src={event.imageUrl}
+            alt={event.title}
+            className="w-full h-64 object-cover"
+          />
+        )}
 
-        {/* Event Information Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-gray-200">
-          {/* Thời gian */}
-          <div className="flex items-start">
-            <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
-              <Calendar className="w-5 h-5 text-blue-600" />
+        <div className="p-8">
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex-1">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{event.title}</h1>
+              <p className="text-gray-600">{event.description}</p>
             </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Thời gian</p>
-              <p className="font-medium text-gray-900">
-                {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', {
-                  locale: vi,
-                })}
-              </p>
-              <p className="text-sm text-gray-500 my-1">đến</p>
-              <p className="font-medium text-gray-900">
-                {format(new Date(event.endTime), 'dd/MM/yyyy HH:mm', {
-                  locale: vi,
-                })}
-              </p>
-            </div>
-          </div>
-
-          {/* Địa điểm + khu vực */}
-          {event.venueName && (
-            <div className="flex items-start">
-              <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                <MapPin className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Địa điểm</p>
-                <p className="font-medium text-gray-900">{event.venueName}</p>
-
-                {event.areaName && (
-                  <p className="text-sm text-gray-700 mt-1">
-                    Khu vực:{' '}
-                    <span className="font-medium">{event.areaName}</span>
-                    {event.floor && (
-                      <span className="text-gray-600"> (Tầng {event.floor})</span>
-                    )}
-                  </p>
-                )}
-
-                {event.areaCapacity != null && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Sức chứa khu vực: {event.areaCapacity} chỗ
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Vị trí chi tiết (location) */}
-          {event.location && (
-            <div className="flex items-start">
-              <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
-                <MapPin className="w-5 h-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Vị trí</p>
-                <p className="font-medium text-gray-900">{event.location}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Số chỗ */}
-          <div className="flex items-start">
-            <div className="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
-              <Users className="w-5 h-5 text-purple-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Số chỗ</p>
-              <p className="font-medium text-gray-900">
-                Tối đa {event.maxSeats} người
-              </p>
-              {event.currentParticipants != null && (
-                <p className="text-sm text-gray-600 mt-1">
-                  Đã đăng ký:{' '}
-                  <span className="font-medium">
-                    {event.currentParticipants}
-                  </span>
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Trạng thái */}
-          <div className="flex items-start">
-            <div className="flex-shrink-0 w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center mr-3">
-              <Clock className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Trạng thái</p>
-              <span
-                className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                  event.status === 'OPEN'
-                    ? 'bg-green-100 text-green-800'
-                    : event.status === 'CLOSED'
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-blue-100 text-blue-800'
-                }`}
+            {isOrganizer && (
+              <Link
+                to={`/events/${event.id}/edit`}
+                className="ml-4 p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
               >
-                {event.status}
-              </span>
-            </div>
-          </div>
-
-          {/* Diễn giả */}
-          {event.speakerName && (
-            <div className="flex items-start">
-              <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-2xl">👤</span>
-              </div>
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Diễn giả</p>
-                <p className="font-medium text-gray-900">
-                  {event.speakerName}
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tickets Section */}
-      {event.tickets && event.tickets.length > 0 && (
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Các loại vé
-          </h2>
-          <div className="space-y-4">
-            {event.tickets.map((ticket) => (
-              <button
-                key={ticket.categoryTicketId}
-                type="button"
-                onClick={() => openSeatModal(ticket as Ticket)}
-                className="w-full flex items-center justify-between border-2 border-gray-200 rounded-lg px-6 py-4 hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 text-left"
-              >
-                <div className="flex-1">
-                  <p className="font-semibold text-lg text-gray-900">
-                    {ticket.name}
-                  </p>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                    <span className="flex items-center">
-                      <Users className="w-4 h-4 mr-1" />
-                      Số lượng: {ticket.maxQuantity}
-                    </span>
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        ticket.status === 'AVAILABLE' || ticket.status === 'ACTIVE'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}
-                    >
-                      {ticket.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Nhấn để chọn ghế
-                  </p>
-                </div>
-                <div className="text-right ml-4">
-                  <p className="font-bold text-2xl text-blue-600">
-                    {ticket.price.toLocaleString('vi-VN')} đ
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Seat Selection Modal */}
-      {isSeatModalOpen && selectedTicket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Chọn ghế – {selectedTicket.name}
-              </h2>
-              <button
-                onClick={closeSeatModal}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-sm text-gray-600 mb-3">
-              Sự kiện: <span className="font-medium">{event.title}</span>
-            </p>
-
-            {event && event.areaId ? (
-              <SeatGrid
-                seats={allSeats}
-                loading={loadingSeats}
-                selectedSeat={selectedSeat}
-                onSeatSelect={setSelectedSeat}
-              />
-            ) : (
-              <p className="text-red-500 mb-3">
-                Sự kiện chưa cấu hình khu vực (areaId).
-              </p>
+                <Edit size={20} />
+              </Link>
             )}
+          </div>
 
-            <div className="flex justify-end gap-3 mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className="flex items-start">
+              <Calendar className="w-5 h-5 text-gray-400 mr-3 mt-1" />
+              <div>
+                <p className="text-sm text-gray-600">Thời gian</p>
+                <p className="font-medium">
+                  {format(new Date(event.startDate), 'dd/MM/yyyy HH:mm', { locale: vi })} -{' '}
+                  {format(new Date(event.endDate), 'HH:mm', { locale: vi })}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start">
+              <MapPin className="w-5 h-5 text-gray-400 mr-3 mt-1" />
+              <div>
+                <p className="text-sm text-gray-600">Địa điểm</p>
+                <p className="font-medium">{event.location}</p>
+              </div>
+            </div>
+
+            <div className="flex items-start">
+              <Users className="w-5 h-5 text-gray-400 mr-3 mt-1" />
+              <div>
+                <p className="text-sm text-gray-600">Người tham gia</p>
+                <p className="font-medium">
+                  {event.currentParticipants}/{event.maxParticipants}
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm text-gray-600">Tổ chức bởi</p>
+              <p className="font-medium">{event.organizer}</p>
+              <span className="text-xs text-gray-500">({event.organizerType})</span>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-4 mb-6">
+            <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
+              {event.eventType}
+            </span>
+            <span
+              className={`px-3 py-1 rounded-full text-sm font-medium ${
+                event.status === 'Upcoming'
+                  ? 'bg-green-100 text-green-800'
+                  : event.status === 'Ongoing'
+                  ? 'bg-yellow-100 text-yellow-800'
+                  : 'bg-gray-100 text-gray-800'
+              }`}
+            >
+              {event.status === 'Upcoming'
+                ? 'Sắp diễn ra'
+                : event.status === 'Ongoing'
+                ? 'Đang diễn ra'
+                : event.status}
+            </span>
+          </div>
+
+          {event.hasSeating && (
+            <div className="mb-6">
+              <Link
+                to={`/seats/${event.id}`}
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Xem sơ đồ ghế ngồi →
+              </Link>
+            </div>
+          )}
+
+          {canRegister && (
+            <button
+              onClick={() => setShowRegisterModal(true)}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
+            >
+              <Ticket className="w-5 h-5 mr-2" />
+              Đăng ký tham gia
+            </button>
+          )}
+
+          {isRegistered && (
+            <Link
+              to="/my-tickets"
+              className="inline-block bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              Xem vé của tôi
+            </Link>
+          )}
+
+          {!canRegister && !isRegistered && (
+            <p className="text-gray-500">
+              {event.currentParticipants >= event.maxParticipants
+                ? 'Sự kiện đã đầy'
+                : 'Không thể đăng ký sự kiện này'}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Registration Modal */}
+      {showRegisterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold mb-4">Đăng ký tham gia</h2>
+            {event.hasSeating && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Chọn ghế (nếu có)
+                </label>
+                <select
+                  value={selectedSeat}
+                  onChange={(e) => setSelectedSeat(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                >
+                  <option value="">Tự động chọn</option>
+                  <option value="A1">A1</option>
+                  <option value="A2">A2</option>
+                  <option value="A3">A3</option>
+                </select>
+              </div>
+            )}
+            <div className="flex space-x-3">
               <button
-                onClick={closeSeatModal}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                onClick={() => setShowRegisterModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Hủy
               </button>
               <button
-                onClick={confirmSeat}
-                disabled={!selectedSeat}
-                className={`px-4 py-2 rounded-lg text-white ${
-                  selectedSeat
-                    ? 'bg-blue-600 hover:bg-blue-700'
-                    : 'bg-gray-400 cursor-not-allowed'
-                }`}
+                onClick={handleRegister}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                Xác nhận ghế
+                Xác nhận
               </button>
             </div>
           </div>
@@ -437,4 +228,5 @@ export default function EventDetail() {
     </div>
   )
 }
+
 

@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
 import axios from 'axios'
+import ReCAPTCHA from 'react-google-recaptcha'
 
 // Use proxy to avoid CORS issues in development
 const API_URL = '/api'
@@ -19,6 +20,14 @@ interface FormData {
   otp: string
 }
 
+// reCAPTCHA site key - HƯỚNG DẪN:
+// 1. Truy cập: https://www.google.com/recaptcha/admin/create
+// 2. Chọn reCAPTCHA v2 (checkbox)
+// 3. Thêm domain: localhost và domain production
+// 4. Copy Site Key và dán vào đây
+const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' // Test key - THAY BẰNG SITE KEY THẬT
+const USE_REAL_RECAPTCHA = true // Đổi thành true khi đã có Site Key thật
+
 export default function Register() {
   const [isOtpSent, setIsOtpSent] = useState(false)
   const [otpCountdown, setOtpCountdown] = useState(0)
@@ -32,6 +41,8 @@ export default function Register() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
+  const recaptchaRef = useRef<ReCAPTCHA>(null)
   const navigate = useNavigate()
 
   // Countdown timer for resend OTP
@@ -58,6 +69,12 @@ export default function Register() {
   }
 
   const handleSendOtp = async () => {
+    // Validate reCAPTCHA nếu dùng mode thật
+    if (USE_REAL_RECAPTCHA && !recaptchaToken) {
+      setError('Vui lòng xác nhận bạn không phải là robot!')
+      return
+    }
+
     // Validate required fields
     if (!formData.fullName || formData.fullName.trim() === '') {
       setError('Vui lòng nhập họ và tên!')
@@ -97,7 +114,8 @@ export default function Register() {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
-        password: formData.password
+        password: formData.password,
+        recaptchaToken: USE_REAL_RECAPTCHA ? recaptchaToken : 'TEST_BYPASS'
       })
 
       console.log('Send OTP Response:', response.data)
@@ -164,7 +182,8 @@ export default function Register() {
         otp: formData.otp,
         fullName: formData.fullName,
         phone: formData.phone,
-        password: formData.password
+        password: formData.password,
+        recaptchaToken: USE_REAL_RECAPTCHA ? recaptchaToken : 'TEST_BYPASS'
       })
 
       console.log('Register Response:', response.data)
@@ -345,6 +364,18 @@ export default function Register() {
                 Mã OTP đã được gửi đến email của bạn. Vui lòng kiểm tra hộp thư.
               </p>
             )}
+          </div>
+
+          <div className="flex justify-center">
+            <ReCAPTCHA
+              ref={recaptchaRef}
+              sitekey={RECAPTCHA_SITE_KEY}
+              onChange={(token) => {
+                setRecaptchaToken(token)
+                setError('')
+              }}
+              onExpired={() => setRecaptchaToken(null)}
+            />
           </div>
 
           <button

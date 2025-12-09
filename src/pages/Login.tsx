@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { GraduationCap } from 'lucide-react'
 import axios from 'axios'
+import ReCAPTCHA from 'react-google-recaptcha'
 
 // Use proxy to avoid CORS issues in development
 const API_URL = '/api'
@@ -16,6 +17,14 @@ interface FormData {
   password: string
 }
 
+// reCAPTCHA site key - HƯỚNG DẪN:
+// 1. Truy cập: https://www.google.com/recaptcha/admin/create
+// 2. Chọn reCAPTCHA v2 (checkbox)
+// 3. Thêm domain: localhost và domain production
+// 4. Copy Site Key và dán vào đây
+const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' // Test key - THAY BẰNG SITE KEY THẬT
+const USE_REAL_RECAPTCHA = false // Đổi thành true khi đã có Site Key thật
+
 export default function Login() {
   const [formData, setFormData] = useState<FormData>({
     email: '',
@@ -23,6 +32,8 @@ export default function Login() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
+  const recaptchaRef = useRef<ReCAPTCHA>(null)
   const { setUser } = useAuth()
   const navigate = useNavigate()
 
@@ -36,7 +47,8 @@ export default function Login() {
     try {
       const response = await axios.post(`${API_URL}/login`, {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        recaptchaToken: USE_REAL_RECAPTCHA ? recaptchaToken : 'TEST_BYPASS'
       })
       
       console.log('Login Response:', response.data)
@@ -77,6 +89,12 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate reCAPTCHA nếu dùng mode thật
+    if (USE_REAL_RECAPTCHA && !recaptchaToken) {
+      setError('Vui lòng xác nhận bạn không phải là robot!')
+      return
+    }
     
     setLoading(true)
     setError('')
@@ -154,9 +172,21 @@ export default function Login() {
             />
           </div>
 
+          <div className="flex justify-center">
+            <ReCAPTCHA
+              ref={recaptchaRef}
+              sitekey={RECAPTCHA_SITE_KEY}
+              onChange={async (token) => {
+                setRecaptchaToken(token)
+                setError('')
+              }}
+              onExpired={() => setRecaptchaToken(null)}
+            />
+          </div>
+
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (USE_REAL_RECAPTCHA && !recaptchaToken)}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
             {loading ? (
