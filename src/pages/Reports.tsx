@@ -10,6 +10,7 @@ export default function Reports() {
 
   // TODO: Fetch events and statistics from API
   const events: any[] = []
+  const mockEvents: any[] = []
   const selectedEvent: any = null
   const registrations: any[] = []
   const checkedInCount = registrations.filter((r: any) => r.checkedIn).length
