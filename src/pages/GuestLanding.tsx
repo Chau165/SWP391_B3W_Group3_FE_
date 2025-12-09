@@ -1,10 +1,13 @@
-import { Link } from 'react-router-dom'
-import { CalendarDays, Ticket, Users, ShieldCheck } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { CalendarDays, Ticket, Users, ShieldCheck, Sparkles, TrendingUp, Award } from 'lucide-react'
+import { useState } from 'react'
+import fptLogo from '../assets/fpt-logo.png'
+import fptLogoLoading from '../assets/fpt-logo-loading.png'
 
 const stats = [
-  { label: 'Sự kiện đã tổ chức', value: '250+' },
-  { label: 'Sinh viên tham gia', value: '12.000+' },
-  { label: 'Đơn vị tổ chức', value: '35+' },
+  { label: 'Sự kiện đã tổ chức', value: '250+', icon: CalendarDays },
+  { label: 'Sinh viên tham gia', value: '12.000+', icon: Users },
+  { label: 'Đơn vị tổ chức', value: '35+', icon: Award },
 ]
 
 const benefits = [
@@ -35,153 +38,204 @@ const benefits = [
 ]
 
 export default function GuestLanding() {
+  const navigate = useNavigate()
+  const [showLoading, setShowLoading] = useState(false)
   const highlightedEvents: any[] = []
 
+  const handleLoginClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setShowLoading(true)
+    setTimeout(() => {
+      navigate('/login')
+    }, 500)
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-indigo-100 text-gray-900">
-      <header className="border-b border-gray-200 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/90 shadow-sm">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100">
+      {/* Header */}
+      <header className="sticky top-0 z-50 border-b border-white/20 bg-white/90 backdrop-blur-xl shadow-sm">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
           <Link
             to="/"
-            className="text-xl font-semibold tracking-tight text-blue-600"
+            className="flex items-center gap-3"
           >
-            FPT Events
+            <img 
+              src={fptLogo} 
+              alt="FPT Education" 
+              className="h-12 w-auto"
+            />
           </Link>
 
-          <div className="flex items-center gap-3">
-            <Link
-              to="/login"
-              className="rounded-full bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleLoginClick}
+              className="rounded-full bg-gradient-to-r from-orange-600 to-orange-500 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-500/30 hover:shadow-xl hover:shadow-orange-500/50 transition-all duration-300 hover:-translate-y-0.5"
             >
               Đăng nhập
-            </Link>
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-16 px-4 py-12">
-        <section className="space-y-8 text-center">
-          <p className="inline-flex rounded-full border border-blue-400/40 bg-blue-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-blue-600">
+      <main className="mx-auto max-w-7xl space-y-24 px-6 py-16">
+        {/* Hero Section */}
+        <section className="space-y-10 text-center pt-8">
+          <div className="inline-flex items-center gap-2 rounded-full border-2 border-orange-400/40 bg-orange-50/80 backdrop-blur-sm px-5 py-2 text-xs font-bold uppercase tracking-[0.2em] text-orange-600 shadow-sm">
+            <TrendingUp className="w-4 h-4" />
             Nền tảng quản lý sự kiện FPT
-          </p>
-          <h1 className="text-4xl font-bold leading-tight sm:text-5xl text-gray-900">
-            Trải nghiệm tổ chức sự kiện{' '}
-            <span className="text-blue-600">thông minh</span> và{' '}
-            <span className="text-blue-600">nhanh chóng</span>
+          </div>
+          
+          <h1 className="text-5xl font-extrabold leading-tight sm:text-6xl lg:text-7xl">
+            <span className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 bg-clip-text text-transparent">
+              Trải nghiệm tổ chức
+            </span>
+            <br />
+            <span className="text-gray-900">sự kiện thông minh</span>
           </h1>
-          <p className="mx-auto max-w-2xl text-base text-gray-600 sm:text-lg">
+          
+          <p className="mx-auto max-w-3xl text-lg text-gray-600 sm:text-xl leading-relaxed">
             Dành cho Ban tổ chức, Bộ phận truyền thông và Câu lạc bộ trong hệ
             thống FPT Education. Tất cả công việc được gom gọn trong một bảng
             điều khiển duy nhất.
           </p>
 
-          <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              to="/login"
-              className="rounded-full bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700"
+          <div className="flex flex-wrap justify-center gap-5 pt-4">
+            <button
+              onClick={handleLoginClick}
+              className="group rounded-full bg-gradient-to-r from-orange-600 to-orange-500 px-8 py-4 text-base font-bold text-white shadow-2xl shadow-orange-500/50 transition-all duration-300 hover:shadow-orange-500/70 hover:-translate-y-1"
             >
-              Đăng nhập để bắt đầu
-            </Link>
+              <span className="flex items-center gap-2">
+                Đăng nhập để bắt đầu
+                <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+              </span>
+            </button>
             <a
               href="#events"
-              className="rounded-full border border-gray-300 px-6 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-100"
+              className="rounded-full border-2 border-orange-300 bg-white px-8 py-4 text-base font-bold text-gray-700 shadow-lg transition-all duration-300 hover:border-orange-500 hover:shadow-xl hover:-translate-y-1"
             >
               Xem sự kiện nổi bật
             </a>
           </div>
         </section>
 
-        <section className="grid gap-4 rounded-3xl border border-gray-200 bg-white p-6 shadow-lg sm:grid-cols-3">
+        {/* Stats Section */}
+        <section className="grid gap-6 sm:grid-cols-3">
           {stats.map(stat => (
-            <div key={stat.label} className="text-center">
-              <p className="text-3xl font-bold text-blue-600">{stat.value}</p>
-              <p className="text-sm uppercase tracking-widest text-gray-600">
-                {stat.label}
-              </p>
+            <div key={stat.label} className="group relative overflow-hidden rounded-3xl border-2 border-white bg-white/80 backdrop-blur-sm p-8 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:border-orange-500">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/20 to-amber-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+              <div className="relative space-y-3">
+                <stat.icon className="w-12 h-12 text-orange-600 group-hover:scale-110 transition-transform duration-300" />
+                <p className="text-5xl font-extrabold bg-gradient-to-r from-orange-600 to-orange-500 bg-clip-text text-transparent">
+                  {stat.value}
+                </p>
+                <p className="text-sm font-semibold uppercase tracking-wider text-gray-600">
+                  {stat.label}
+                </p>
+              </div>
             </div>
           ))}
         </section>
 
-        <section className="space-y-6">
-          <header className="space-y-2 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.4em] text-blue-600">
+        {/* Features Section */}
+        <section className="space-y-12">
+          <header className="space-y-4 text-center">
+            <p className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.3em] text-orange-600">
+              <Sparkles className="w-4 h-4" />
               Tính năng
             </p>
-            <h2 className="text-3xl font-bold text-gray-900">
+            <h2 className="text-4xl font-extrabold text-gray-900 sm:text-5xl">
               Tất cả trong một
             </h2>
-            <p className="text-gray-600">
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Thiết kế dành riêng cho nhu cầu vận hành sự kiện nội bộ FPT.
             </p>
           </header>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            {benefits.map(benefit => (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {benefits.map((benefit, index) => (
               <div
                 key={benefit.title}
-                className="space-y-3 rounded-2xl border border-gray-200 bg-white p-5 shadow-md transition hover:border-blue-400 hover:shadow-lg"
+                className="group relative overflow-hidden rounded-2xl border-2 border-white bg-white/80 backdrop-blur-sm p-6 shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:border-orange-500"
+                style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="inline-flex rounded-xl bg-blue-100 p-3 text-blue-600">
-                  <benefit.icon size={24} />
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-orange-500/20 to-amber-500/10 rounded-full -mr-12 -mt-12 group-hover:scale-150 transition-transform duration-500"></div>
+                <div className="relative space-y-4">
+                  <div className="inline-flex rounded-2xl bg-gradient-to-br from-orange-600 to-orange-500 p-4 text-white shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <benefit.icon size={28} strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900">
+                    {benefit.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 leading-relaxed">
+                    {benefit.description}
+                  </p>
                 </div>
-                <p className="text-lg font-semibold text-gray-900">
-                  {benefit.title}
-                </p>
-                <p className="text-sm text-gray-600">{benefit.description}</p>
               </div>
             ))}
           </div>
         </section>
 
-        <section id="events" className="space-y-6">
-          <header className="space-y-2 text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.4em] text-blue-600">
+        {/* Events Section */}
+        <section id="events" className="space-y-12">
+          <header className="space-y-4 text-center">
+            <p className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.3em] text-orange-600">
+              <CalendarDays className="w-4 h-4" />
               Sự kiện
             </p>
-            <h2 className="text-3xl font-bold text-gray-900">
+            <h2 className="text-4xl font-extrabold text-gray-900 sm:text-5xl">
               Hoạt động nổi bật
             </h2>
-            <p className="text-gray-600">
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
               Một số chương trình đang thu hút đông đảo sinh viên.
             </p>
           </header>
 
           {highlightedEvents.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p>Chưa có sự kiện nào</p>
+            <div className="text-center py-20">
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 mb-6">
+                <CalendarDays className="w-12 h-12 text-orange-600" />
+              </div>
+              <p className="text-xl font-semibold text-gray-500">Chưa có sự kiện nào</p>
+              <p className="text-gray-400 mt-2">Hãy quay lại sau để xem các sự kiện mới nhất</p>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-3">
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {highlightedEvents.map((event: any) => (
                 <div
                   key={event.id}
-                  className="rounded-2xl border border-gray-200 bg-white p-5 shadow-md hover:shadow-lg transition-shadow"
+                  className="group relative overflow-hidden rounded-3xl border-2 border-white bg-white/80 backdrop-blur-sm shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:border-orange-500"
                 >
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-sm uppercase tracking-widest text-blue-600">
-                        {event.eventType}
-                      </p>
-                      <h3 className="text-xl font-semibold text-gray-900">
-                        {event.title}
-                      </h3>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/20 to-amber-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
+                  <div className="relative p-6 space-y-4">
+                    <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-orange-600">
+                      <Sparkles className="w-3 h-3" />
+                      {event.eventType}
                     </div>
-                    <p className="text-sm text-gray-600 line-clamp-3">
+                    <h3 className="text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
+                      {event.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed">
                       {event.description}
                     </p>
-                    <div className="text-sm text-gray-500">
-                      <p>
+                    <div className="space-y-2 text-sm text-gray-500">
+                      <p className="flex items-center gap-2">
+                        <CalendarDays className="w-4 h-4" />
                         {new Date(event.startDate).toLocaleString('vi-VN', {
                           dateStyle: 'medium',
                           timeStyle: 'short',
                         })}
                       </p>
-                      <p>{event.location}</p>
+                      <p className="flex items-center gap-2">
+                        <Users className="w-4 h-4" />
+                        {event.currentParticipants}/{event.maxParticipants} người đăng ký
+                      </p>
                     </div>
-                    <p className="text-sm font-semibold text-blue-600">
-                      {event.currentParticipants}/{event.maxParticipants} người
-                      đăng ký
-                    </p>
+                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-gradient-to-r from-orange-600 to-orange-500 transition-all duration-500"
+                        style={{ width: `${(event.currentParticipants / event.maxParticipants) * 100}%` }}
+                      ></div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -189,27 +243,64 @@ export default function GuestLanding() {
           )}
         </section>
 
-        <section className="rounded-3xl border border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 p-8 text-center shadow-lg">
-          <h2 className="text-3xl font-bold text-gray-900">
-            Sẵn sàng nâng cấp trải nghiệm sự kiện?
-          </h2>
-          <p className="mt-3 text-gray-600">
-            Đăng nhập bằng tài khoản nội bộ để truy cập bảng điều khiển dành
-            cho Event Organizer, Staff và Volunteer.
-          </p>
-          <Link
-            to="/login"
-            className="mt-6 inline-flex items-center justify-center rounded-full bg-blue-600 px-8 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition hover:bg-blue-700 hover:-translate-y-0.5"
-          >
-            Đăng nhập hệ thống
-          </Link>
+        {/* CTA Section */}
+        <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-600 via-orange-500 to-amber-500 p-12 text-center shadow-2xl">
+          <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZGVmcz48cGF0dGVybiBpZD0iZ3JpZCIgd2lkdGg9IjQwIiBoZWlnaHQ9IjQwIiBwYXR0ZXJuVW5pdHM9InVzZXJTcGFjZU9uVXNlIj48cGF0aCBkPSJNIDQwIDAgTCAwIDAgMCA0MCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLW9wYWNpdHk9IjAuMSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+')] opacity-30"></div>
+          <div className="relative space-y-6">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm mb-4">
+              <Sparkles className="w-10 h-10 text-white animate-pulse" />
+            </div>
+            <h2 className="text-4xl font-extrabold text-white sm:text-5xl">
+              Sẵn sàng nâng cấp trải nghiệm sự kiện?
+            </h2>
+            <p className="mt-4 text-xl text-blue-50 max-w-3xl mx-auto leading-relaxed">
+              Đăng nhập bằng tài khoản nội bộ để truy cập bảng điều khiển dành
+              cho Event Organizer, Staff và Volunteer.
+            </p>
+            <button
+              onClick={handleLoginClick}
+              className="group inline-flex items-center gap-3 mt-8 rounded-full bg-white px-10 py-5 text-lg font-bold text-blue-600 shadow-2xl transition-all duration-300 hover:shadow-white/30 hover:-translate-y-1 hover:scale-105"
+            >
+              Đăng nhập hệ thống
+              <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            </button>
+          </div>
         </section>
       </main>
 
-      <footer className="border-t border-gray-200 bg-white py-6 text-center text-xs text-gray-500">
-        © {new Date().getFullYear()} FPT Events Platform · Designed for SWP391
-        B3W Group 3
+      {/* Footer */}
+      <footer className="border-t-2 border-white/50 bg-white/60 backdrop-blur-sm py-8 mt-24">
+        <div className="mx-auto max-w-7xl px-6 text-center">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <img 
+              src={fptLogo} 
+              alt="FPT Education" 
+              className="h-10 w-auto"
+            />
+          </div>
+          <p className="text-sm text-gray-500">
+            © {new Date().getFullYear()} FPT Education Events Platform · Designed for SWP391 B3W Group 3
+          </p>
+        </div>
       </footer>
+
+      {/* Loading Overlay */}
+      {showLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100">
+          <div className="flex flex-col items-center gap-6">
+            <img 
+              src={fptLogoLoading} 
+              alt="FPT Education" 
+              className="h-24 w-auto animate-pulse"
+            />
+            <div className="flex gap-2">
+              <div className="h-3 w-3 rounded-full bg-orange-600 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="h-3 w-3 rounded-full bg-orange-600 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="h-3 w-3 rounded-full bg-orange-600 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

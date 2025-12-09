@@ -1,12 +1,26 @@
-import { Outlet, Link, useNavigate } from 'react-router-dom'
+import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { LogOut, Menu, X } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import fptLogo from '../assets/fpt-logo.png'
+import fptLogoLoading from '../assets/fpt-logo-loading.png'
 
 export default function Layout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showLoading, setShowLoading] = useState(false)
+
+  // Show loading overlay when location changes
+  useEffect(() => {
+    setShowLoading(true)
+    const timer = setTimeout(() => {
+      setShowLoading(false)
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [location.pathname])
 
   const handleLogout = () => {
     logout()
@@ -17,14 +31,14 @@ export default function Layout() {
   const isStaff = user?.role === 'STAFF'
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className="bg-white shadow-lg border-b-2 border-orange-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <Link to="/dashboard" className="text-2xl font-bold text-blue-600">
-                FPT Events
+              <Link to="/dashboard" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <img src={fptLogo} alt="FPT Education" className="h-12 w-auto" />
               </Link>
             </div>
 
@@ -32,20 +46,20 @@ export default function Layout() {
             <nav className="hidden md:flex items-center space-x-1">
               <Link
                 to="/dashboard"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
               >
                 Dashboard
               </Link>
               <Link
                 to="/dashboard/events"
-                className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
               >
                 Sự kiện
               </Link>
               {isOrganizer && (
                 <Link
                   to="/dashboard/events/create"
-                  className="px-3 py-2 rounded-md text-sm font-medium text-blue-600 hover:bg-blue-50"
+                  className="px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-orange-600 to-orange-500 text-white hover:shadow-lg hover:shadow-orange-500/50 transition-all"
                 >
                   Tạo sự kiện
                 </Link>
@@ -53,7 +67,7 @@ export default function Layout() {
               {(user?.role === 'ORGANIZER' || isStaff) && (
                 <Link
                   to="/dashboard/event-requests"
-                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                  className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
                 >
                   {isStaff ? 'Quản lý yêu cầu' : 'Yêu cầu của tôi'}
                 </Link>
@@ -62,7 +76,7 @@ export default function Layout() {
                 <>
                   <Link
                     to="/dashboard/check-in"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
                   >
                     Check-in
                   </Link>
@@ -72,13 +86,13 @@ export default function Layout() {
                 <>
                   <Link
                     to="/dashboard/my-tickets"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
                   >
                     Vé của tôi
                   </Link>
                   <Link
                     to="/dashboard/bills"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
                   >
                     Hóa đơn
                   </Link>
@@ -88,13 +102,13 @@ export default function Layout() {
                 <>
                   <Link
                     to="/dashboard/venues"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
                   >
                     Địa điểm
                   </Link>
                   <Link
                     to="/dashboard/reports"
-                    className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100"
+                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
                   >
                     Báo cáo
                   </Link>
@@ -105,12 +119,12 @@ export default function Layout() {
             {/* User Info */}
             <div className="hidden md:flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-sm font-medium text-gray-900">{user?.fullName}</p>
-                <p className="text-xs text-gray-500">{user?.role}</p>
+                <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
+                <p className="text-xs font-medium text-orange-600">{user?.role}</p>
               </div>
               <button
                 onClick={handleLogout}
-                className="p-2 text-gray-500 hover:text-gray-700"
+                className="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all"
                 title="Đăng xuất"
               >
                 <LogOut size={20} />
@@ -229,6 +243,24 @@ export default function Layout() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
+
+      {/* Loading Overlay */}
+      {showLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100">
+          <div className="flex flex-col items-center gap-6">
+            <img 
+              src={fptLogoLoading} 
+              alt="FPT Education" 
+              className="h-24 w-auto animate-pulse"
+            />
+            <div className="flex gap-2">
+              <div className="h-3 w-3 rounded-full bg-orange-600 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+              <div className="h-3 w-3 rounded-full bg-orange-600 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+              <div className="h-3 w-3 rounded-full bg-orange-600 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
