@@ -92,10 +92,10 @@ export default function EventRequestCreate() {
       const requestBody = {
         title: formData.title,
         description: formData.description,
-        reason: formData.reason,
         preferredStartTime: formData.preferredStart ? formatDateTimeLocal(formData.preferredStart) : null,
         preferredEndTime: formData.preferredEnd ? formatDateTimeLocal(formData.preferredEnd) : null,
-        expectedParticipants: parseInt(formData.expectedParticipants) || 0,
+        // BE expects `expectedCapacity`
+        expectedCapacity: parseInt(formData.expectedParticipants) || 0,
       }
 
       console.log('Submitting event request:', requestBody)

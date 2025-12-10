@@ -22,7 +22,8 @@ interface FormData {
 // 2. Chọn reCAPTCHA v2 (checkbox)
 // 3. Thêm domain: localhost và domain production
 // 4. Copy Site Key và dán vào đây
-const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' // Test key - THAY BẰNG SITE KEY THẬT
+//const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' // Test key - THAY BẰNG SITE KEY THẬT
+const RECAPTCHA_SITE_KEY = '6LcRNiUsAAAAAOTRRAnoQAHXQNfIFx5v49ZAbnsK' 
 const USE_REAL_RECAPTCHA = true // Đổi thành false để dùng TEST_BYPASS khi debug nhanh
 
 export default function Login() {

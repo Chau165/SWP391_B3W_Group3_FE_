@@ -36,6 +36,9 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/guest" element={<GuestLanding />} />
+      {/* Public payment callback routes for VNPay redirects */}
+      <Route path="/payment-success" element={<PaymentSuccess />} />
+      <Route path="/payment-failed" element={<PaymentFailed />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/reset-password" element={<ResetPassword />} />

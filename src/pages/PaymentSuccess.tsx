@@ -1,10 +1,35 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 export default function PaymentSuccess() {
   const location = useLocation()
+  const navigate = useNavigate()
   const params = new URLSearchParams(location.search)
-  const ticketId = params.get('ticketId')
+  const [ticketId, setTicketId] = useState<string | null>(null)
+
+  // Guard: only show success if VNPay response indicates success
+  useEffect(() => {
+    const vnpResponseCode = params.get('vnp_ResponseCode')
+    const vnpTxnNo = params.get('vnp_TransactionNo')
+    const ticket = params.get('ticketId')
+    const status = params.get('status')
+
+    // VNPay success code is "00". Anything else -> failed.
+    const isSuccess = vnpResponseCode === '00' || status === 'success'
+    if (!isSuccess) {
+      navigate('/payment-failed' + location.search, { replace: true })
+      return
+    }
+
+    // Optional: must have a transaction number or ticketId
+    if (!vnpTxnNo && !ticket) {
+      navigate('/payment-failed' + location.search, { replace: true })
+      return
+    }
+
+    setTicketId(ticket)
+  }, [location.search, navigate])
 
   return (
     <div className="flex items-center justify-center min-h-[400px]">

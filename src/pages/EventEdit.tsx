@@ -17,8 +17,8 @@ export default function EventEdit() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   
-  const [loading, setLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [loading, setLoading] = useState(false)
+   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   
   const [speaker, setSpeaker] = useState({
@@ -39,9 +39,7 @@ export default function EventEdit() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
 
-  useEffect(() => {
-    fetchEventDetails()
-  }, [id])
+   // Removed fetching event details to avoid viewing them on this page
 
   const fetchEventDetails = async () => {
     try {
@@ -66,11 +64,13 @@ export default function EventEdit() {
       }
     } catch (error) {
       console.error('Error fetching event:', error)
-      setError('Không thể tải thông tin sự kiện')
+      // Remove specific phrase; show a generic error or actual error message
+      setError(error instanceof Error ? error.message : 'Đã xảy ra lỗi')
     } finally {
       setLoading(false)
     }
   }
+   // Removed: fetchEventDetails function to stop showing event details
 
   const handleSpeakerChange = (field: keyof typeof speaker, value: string) => {
     setSpeaker(prev => ({ ...prev, [field]: value }))

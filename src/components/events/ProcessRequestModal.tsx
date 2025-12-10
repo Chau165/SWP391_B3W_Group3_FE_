@@ -17,6 +17,7 @@ type ProcessRequestModalProps = {
     title: string
     preferredStartTime?: string
     preferredEndTime?: string
+    expectedCapacity?: number
   } | null
 }
 
@@ -43,64 +44,109 @@ export function ProcessRequestModal({
   }, [isOpen, action, request?.requestId, request?.preferredStartTime, request?.preferredEndTime])
 
   const fetchAvailableAreas = async () => {
-    if (!request?.preferredStartTime || !request?.preferredEndTime) return
+  if (!request?.preferredStartTime || !request?.preferredEndTime) return
 
-    setLoading(true)
-    setError(null)
-    try {
-      const token = localStorage.getItem('token')
-      
-      // Format datetime for backend API: ISO 8601 format (YYYY-MM-DDTHH:mm:ss)
-      const formatDateTime = (dateStr: string) => {
-        // Extract datetime: YYYY-MM-DDTHH:mm:ss
-        // Remove 'Z' if present and take first 19 characters
-        return dateStr.replace('Z', '').slice(0, 19)
+  setLoading(true)
+  setError(null)
+  try {
+    const token = localStorage.getItem('token')
+
+    // ✅ Format datetime đúng kiểu BE mong muốn: "yyyy-MM-dd HH:mm:ss"
+    const formatDateTime = (dateStr: string) => {
+      const d = new Date(dateStr)
+      if (Number.isNaN(d.getTime())) {
+        console.error('Invalid date from request:', dateStr)
+        return ''
       }
-      
-      const startTime = formatDateTime(request.preferredStartTime)
-      const endTime = formatDateTime(request.preferredEndTime)
-      
-      console.log('Original times:', { start: request.preferredStartTime, end: request.preferredEndTime })
-      console.log('Formatted times:', { startTime, endTime })
-      
-      const url = `http://localhost:3000/api/areas/free?startTime=${encodeURIComponent(startTime)}&endTime=${encodeURIComponent(endTime)}`
-      console.log('Fetching areas from:', url)
-      
-      const response = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+
+      const pad = (n: number) => n.toString().padStart(2, '0')
+
+      const year = d.getFullYear()
+      const month = pad(d.getMonth() + 1)
+      const day = pad(d.getDate())
+      const hours = pad(d.getHours())
+      const minutes = pad(d.getMinutes())
+      const seconds = pad(d.getSeconds())
+
+      // → "2025-12-10 08:00:00"
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`
+    }
+
+    const startTime = formatDateTime(request.preferredStartTime)
+    const endTime = formatDateTime(request.preferredEndTime)
+
+    if (!startTime || !endTime) {
+      setError('Thời gian sự kiện không hợp lệ')
+      setLoading(false)
+      return
+    }
+
+    console.log('Original times:', {
+      start: request.preferredStartTime,
+      end: request.preferredEndTime
+    })
+    console.log('Formatted times for API:', { startTime, endTime })
+
+    const url = `http://localhost:3000/api/areas/free?startTime=${encodeURIComponent(
+      startTime
+    )}&endTime=${encodeURIComponent(endTime)}`
+
+    console.log('Fetching areas from:', url)
+
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token ?? ''}`
+      }
+    })
+
+    console.log('Areas response status:', response.status)
+
+    if (response.ok) {
+      const data = await response.json()
+      console.log('Available areas (raw):', data)
+
+      const allAreas = Array.isArray(data.areas) ? data.areas : []
+
+      // ✅ Lấy sức chứa yêu cầu từ request (nếu có)
+      const expectedCapacity = request?.expectedCapacity ?? 0
+
+      // ✅ Lọc những khu vực đủ sức chứa
+      const filteredAreas =
+        expectedCapacity > 0
+          ? allAreas.filter((area: Area) => area.capacity >= expectedCapacity)
+          : allAreas
+
+      console.log('Filtered areas:', {
+        expectedCapacity,
+        allAreasCount: allAreas.length,
+        filteredCount: filteredAreas.length
       })
 
-      console.log('Areas response status:', response.status)
-      
-      if (response.ok) {
-        const data = await response.json()
-        console.log('Available areas:', data)
-        
-        // Extract areas array from response object
-        const areasArray = Array.isArray(data.areas) ? data.areas : []
-        setAreas(areasArray)
-        
-        if (areasArray.length > 0) {
-          setSelectedAreaId(areasArray[0].areaId)
-        }
+      setAreas(filteredAreas)
+
+      if (filteredAreas.length > 0) {
+        setSelectedAreaId(filteredAreas[0].areaId)
       } else {
-        const errorText = await response.text()
-        console.error('Error response:', errorText)
-        throw new Error('Failed to fetch available areas')
+        // Nếu không có khu vực nào đủ sức chứa
+        setSelectedAreaId(0)
       }
-    } catch (error) {
-      console.error('Error fetching areas:', error)
-      setError('Không thể tải danh sách khu vực. Vui lòng thử lại.')
-    } finally {
-      setLoading(false)
+    } else {
+      const errorText = await response.text()
+      console.error('Error response:', errorText)
+      throw new Error('Failed to fetch available areas')
     }
+  } catch (error) {
+    console.error('Error fetching areas:', error)
+    setError('Không thể tải danh sách khu vực. Vui lòng thử lại.')
+  } finally {
+    setLoading(false)
   }
+}
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (action === 'APPROVE' && selectedAreaId === 0) {
       alert('Vui lòng chọn khu vực cho sự kiện')
       return
@@ -201,11 +247,10 @@ export function ProcessRequestModal({
             <button
               type="submit"
               disabled={action === 'APPROVE' && (loading || areas.length === 0)}
-              className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors ${
-                action === 'APPROVE'
+              className={`flex-1 px-4 py-2 text-white rounded-lg transition-colors ${action === 'APPROVE'
                   ? 'bg-green-600 hover:bg-green-700 disabled:bg-gray-400'
                   : 'bg-red-600 hover:bg-red-700'
-              }`}
+                }`}
             >
               {action === 'APPROVE' ? 'Duyệt' : 'Từ chối'}
             </button>
