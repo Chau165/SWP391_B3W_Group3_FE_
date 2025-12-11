@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { CalendarDays, Ticket, Users, ShieldCheck, Sparkles, TrendingUp, Award } from 'lucide-react'
+import { CalendarDays, Ticket, Users, ShieldCheck, Sparkles, TrendingUp, Award, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import fptLogo from '../assets/fpt-logo.png'
 import fptLogoLoading from '../assets/fpt-logo-loading.png'
@@ -45,6 +45,12 @@ export default function GuestLanding() {
   const [counters, setCounters] = useState({ events: 0, students: 0, organizers: 0 })
   const [hasAnimated, setHasAnimated] = useState(false)
   const statsRef = useRef<HTMLElement>(null)
+  const eventsScrollRef = useRef<HTMLDivElement>(null)
+  const eventsSectionRef = useRef<HTMLElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+  const [hoveredEventId, setHoveredEventId] = useState<number | null>(null)
+  const [isMouseInEvents, setIsMouseInEvents] = useState(false)
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -117,6 +123,67 @@ export default function GuestLanding() {
       }
     }, stepDuration)
   }
+
+  const checkScrollButtons = () => {
+    if (eventsScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = eventsScrollRef.current
+      setCanScrollLeft(scrollLeft > 0)
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10)
+    }
+  }
+
+  const scrollEvents = (direction: 'left' | 'right') => {
+    if (eventsScrollRef.current) {
+      const scrollAmount = 400
+      const newScrollLeft = direction === 'left' 
+        ? eventsScrollRef.current.scrollLeft - scrollAmount
+        : eventsScrollRef.current.scrollLeft + scrollAmount
+      
+      eventsScrollRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: 'smooth'
+      })
+    }
+  }
+
+  const handleEventsWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    if (eventsScrollRef.current) {
+      e.preventDefault()
+      e.stopPropagation()
+      
+      const { scrollLeft, scrollWidth, clientWidth } = eventsScrollRef.current
+      const isAtEnd = scrollLeft >= scrollWidth - clientWidth - 10
+      const isAtStart = scrollLeft === 0
+
+      // Scroll ngang
+      if (e.deltaY > 0 && !isAtEnd) {
+        eventsScrollRef.current.scrollLeft += 100
+      } else if (e.deltaY < 0 && !isAtStart) {
+        eventsScrollRef.current.scrollLeft -= 100
+      }
+    }
+  }
+
+  const handleMouseEnterEvents = () => {
+    setIsMouseInEvents(true)
+    document.body.style.overflow = 'hidden'
+  }
+
+  const handleMouseLeaveEvents = () => {
+    setIsMouseInEvents(false)
+    document.body.style.overflow = 'auto'
+  }
+
+  useEffect(() => {
+    checkScrollButtons()
+    const handleResize = () => checkScrollButtons()
+    window.addEventListener('resize', handleResize)
+    
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      document.body.style.overflow = 'auto'
+    }
+  }, [highlightedEvents])
 
   const handleLoginClick = (e: React.MouseEvent) => {
     e.preventDefault()
@@ -279,7 +346,7 @@ export default function GuestLanding() {
         </section>
 
         {/* Events Section */}
-        <section id="events" className="space-y-12">
+        <section id="events" ref={eventsSectionRef} className="space-y-12">
           <header className="space-y-4 text-center">
             <p className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.3em] text-orange-600">
               <CalendarDays className="w-4 h-4" />
@@ -309,56 +376,104 @@ export default function GuestLanding() {
               <p className="text-gray-400 mt-2">Hãy quay lại sau để xem các sự kiện mới nhất</p>
             </div>
           ) : (
-            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {highlightedEvents.map((event: any) => (
-                <div
-                  key={event.eventId}
-                  className="group relative overflow-hidden rounded-3xl border-2 border-white bg-white/80 backdrop-blur-sm shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:border-orange-500"
+            <div 
+              className="relative"
+              onWheel={handleEventsWheel}
+              onMouseEnter={handleMouseEnterEvents}
+              onMouseLeave={handleMouseLeaveEvents}
+            >
+              {/* Navigation Buttons */}
+              {canScrollLeft && (
+                <button
+                  onClick={() => scrollEvents('left')}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm p-3 rounded-full hover:bg-orange-500 hover:text-white transition-all duration-300 group"
                 >
-                  {event.bannerUrl && (
-                    <div className="relative h-48 overflow-hidden">
-                      <img 
-                        src={event.bannerUrl} 
-                        alt={event.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
-                    </div>
-                  )}
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/20 to-amber-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
-                  <div className="relative p-6 space-y-4">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-orange-600">
-                      <Sparkles className="w-3 h-3" />
-                      {event.status}
-                    </div>
-                    <h3 className="text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
-                      {event.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed">
-                      {event.description}
-                    </p>
-                    <div className="space-y-2 text-sm text-gray-500">
-                      <p className="flex items-center gap-2">
-                        <CalendarDays className="w-4 h-4" />
-                        {new Date(event.startTime).toLocaleString('vi-VN', {
-                          dateStyle: 'medium',
-                          timeStyle: 'short',
-                        })}
+                  <ChevronLeft className="w-6 h-6 text-orange-600 group-hover:text-white" />
+                </button>
+              )}
+              {canScrollRight && (
+                <button
+                  onClick={() => scrollEvents('right')}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-white/90 backdrop-blur-sm p-3 rounded-full hover:bg-orange-500 hover:text-white transition-all duration-300 group"
+                >
+                  <ChevronRight className="w-6 h-6 text-orange-600 group-hover:text-white" />
+                </button>
+              )}
+
+              {/* Scrollable Events Container */}
+              <div 
+                ref={eventsScrollRef}
+                onScroll={checkScrollButtons}
+                className="flex gap-6 overflow-x-auto scrollbar-hide pb-4"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', scrollBehavior: 'smooth' }}
+              >
+                {highlightedEvents.map((event: any) => (
+                  <div
+                    key={event.eventId}
+                    onMouseEnter={() => setHoveredEventId(event.eventId)}
+                    onMouseLeave={() => setHoveredEventId(null)}
+                    onClick={handleLoginClick}
+                    className="relative flex-shrink-0 w-[380px] overflow-hidden rounded-3xl border-2 border-white bg-white/80 backdrop-blur-sm transition-all duration-500 hover:border-orange-500 cursor-pointer"
+                    style={{
+                      transform: hoveredEventId === event.eventId ? 'scale(1.05)' : 'scale(1)',
+                    }}
+                  >
+                    {event.bannerUrl && (
+                      <div className="relative h-48 overflow-hidden">
+                        <img 
+                          src={event.bannerUrl} 
+                          alt={event.title}
+                          className="w-full h-full object-cover transition-transform duration-500"
+                          style={{
+                            transform: hoveredEventId === event.eventId ? 'scale(1.1)' : 'scale(1)',
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                      </div>
+                    )}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/20 to-amber-500/10 rounded-full -mr-16 -mt-16 transition-transform duration-500"
+                      style={{
+                        transform: hoveredEventId === event.eventId ? 'scale(1.5)' : 'scale(1)',
+                      }}
+                    ></div>
+                    <div className="relative p-6 space-y-4">
+                      <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-orange-600">
+                        <Sparkles className="w-3 h-3" />
+                        {event.status}
+                      </div>
+                      <h3 className="text-2xl font-bold text-gray-900 transition-colors duration-300"
+                        style={{
+                          color: hoveredEventId === event.eventId ? '#ea580c' : '',
+                        }}
+                      >
+                        {event.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed">
+                        {event.description}
                       </p>
-                      {event.venueName && (
+                      <div className="space-y-2 text-sm text-gray-500">
                         <p className="flex items-center gap-2">
-                          <Award className="w-4 h-4" />
-                          {event.venueName}
+                          <CalendarDays className="w-4 h-4" />
+                          {new Date(event.startTime).toLocaleString('vi-VN', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
                         </p>
-                      )}
-                      <p className="flex items-center gap-2">
-                        <Users className="w-4 h-4" />
-                        {event.maxSeats} chỗ ngồi
-                      </p>
+                        {event.venueName && (
+                          <p className="flex items-center gap-2">
+                            <Award className="w-4 h-4" />
+                            {event.venueName}
+                          </p>
+                        )}
+                        <p className="flex items-center gap-2">
+                          <Users className="w-4 h-4" />
+                          {event.maxSeats} chỗ ngồi
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
         </section>
