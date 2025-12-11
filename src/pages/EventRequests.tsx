@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import { CheckCircle2, XCircle, FileClock, PlusCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { EventRequestDetailModal } from '../components/events/EventRequestDetailModal'
@@ -49,6 +50,7 @@ const getStatusClass = (status: EventRequestStatus) => {
 
 export default function EventRequests() {
   const { user } = useAuth()
+  const { showToast } = useToast()
   const navigate = useNavigate()
   const isStaff = user?.role === 'STAFF'
   const isOrganizer = user?.role === 'ORGANIZER'
@@ -169,15 +171,17 @@ export default function EventRequests() {
       })
 
       if (response.ok) {
-        alert(processAction === 'APPROVE' ? 'Đã duyệt yêu cầu thành công!' : 'Đã từ chối yêu cầu.')
+        showToast('success', processAction === 'APPROVE' ? 'Đã duyệt yêu cầu thành công!' : 'Đã từ chối yêu cầu.')
         fetchEventRequests()
       } else {
         const errorData = await response.text()
-        throw new Error(errorData || 'Failed to process request')
+        const errorMessage = errorData || 'Failed to process request'
+        showToast('error', errorMessage)
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('Error processing request:', error)
-      alert('Không thể xử lý yêu cầu. Vui lòng thử lại.')
+      showToast('error', 'Không thể xử lý yêu cầu. Vui lòng thử lại.')
     }
   }
 

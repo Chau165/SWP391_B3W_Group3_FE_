@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
 import Login from './pages/Login.tsx'
 import Register from './pages/Register.tsx'
 import ResetPassword from './pages/ResetPassword.tsx'
@@ -82,7 +83,9 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <AppRoutes />
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
       </Router>
     </AuthProvider>
   )

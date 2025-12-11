@@ -162,9 +162,9 @@ export default function Register() {
       setError('')
       
       if (response.data.status === 'success' || response.status === 200) {
-        alert('Mã OTP mới đã được gửi lại!')
+        showToast('success', 'Mã OTP mới đã được gửi lại!')
       } else {
-        alert('Mã OTP đã được gửi lại. Vui lòng kiểm tra email.')
+        showToast('info', 'Mã OTP đã được gửi lại. Vui lòng kiểm tra email.')
       }
     } catch (err: any) {
       console.error('Resend OTP Error:', err)
@@ -191,7 +191,7 @@ export default function Register() {
       console.log('Register Response:', response.data)
 
       if (response.data.status === 'success') {
-        alert('Đăng ký thành công! Vui lòng đăng nhập.')
+        showToast('success', 'Đăng ký thành công! Vui lòng đăng nhập.')
         navigate('/login')
       } else {
         setError(response.data.message || 'Đăng ký thất bại')

@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { useToast } from '../../contexts/ToastContext'
 
 type Area = {
   areaId: number
@@ -28,6 +29,7 @@ export function ProcessRequestModal({
   action,
   request
 }: ProcessRequestModalProps) {
+  const { showToast } = useToast()
   const [areas, setAreas] = useState<Area[]>([])
   const [selectedAreaId, setSelectedAreaId] = useState<number>(0)
   const [organizerNote, setOrganizerNote] = useState('')
@@ -163,7 +165,7 @@ export function ProcessRequestModal({
     e.preventDefault()
 
     if (action === 'APPROVE' && selectedAreaId === 0) {
-      alert('Vui lòng chọn khu vực cho sự kiện')
+      showToast('warning', 'Vui lòng chọn khu vực cho sự kiện')
       return
     }
 

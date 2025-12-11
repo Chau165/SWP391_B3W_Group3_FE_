@@ -92,10 +92,16 @@ export default function Layout() {
     
     let targetUrl = notification.linkUrl
     
-    // Map /events to /dashboard/event-requests for organizers
-    if (user?.role === 'ORGANIZER' && targetUrl?.startsWith('/events')) {
-      targetUrl = '/dashboard/event-requests'
-    } else if (targetUrl?.startsWith('/events')) {
+    // For organizers, both approved and rejected event notifications should go to event-requests page
+    if (user?.role === 'ORGANIZER') {
+      // Check if it's an event-related notification (approved, rejected, or any event notification)
+      if (targetUrl?.startsWith('/events') || !targetUrl || targetUrl === '' || 
+          notification.title.includes('sự kiện') || notification.content.includes('sự kiện')) {
+        targetUrl = '/dashboard/event-requests'
+      }
+    } 
+    // For non-organizers, prepend /dashboard if needed
+    else if (targetUrl?.startsWith('/events')) {
       targetUrl = `/dashboard${targetUrl}`
     } else if (targetUrl && !targetUrl.startsWith('/dashboard')) {
       targetUrl = `/dashboard${targetUrl}`
@@ -126,13 +132,21 @@ export default function Layout() {
             <nav className="hidden md:flex items-center space-x-1">
               <Link
                 to="/dashboard"
-                className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  location.pathname === '/dashboard'
+                    ? 'bg-orange-100 text-orange-600'
+                    : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                }`}
               >
                 Dashboard
               </Link>
               <Link
                 to="/dashboard/events"
-                className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  location.pathname.startsWith('/dashboard/events')
+                    ? 'bg-orange-100 text-orange-600'
+                    : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                }`}
               >
                 Sự kiện
               </Link>
@@ -147,7 +161,11 @@ export default function Layout() {
               {(user?.role === 'ORGANIZER' || isStaff) && (
                 <Link
                   to="/dashboard/event-requests"
-                  className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    location.pathname.startsWith('/dashboard/event-requests')
+                      ? 'bg-orange-100 text-orange-600'
+                      : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                  }`}
                 >
                   {isStaff ? 'Quản lý yêu cầu' : 'Yêu cầu của tôi'}
                 </Link>
@@ -156,7 +174,11 @@ export default function Layout() {
                 <>
                   <Link
                     to="/dashboard/check-in"
-                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      location.pathname === '/dashboard/check-in'
+                        ? 'bg-orange-100 text-orange-600'
+                        : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                    }`}
                   >
                     Check-in
                   </Link>
@@ -166,13 +188,21 @@ export default function Layout() {
                 <>
                   <Link
                     to="/dashboard/my-tickets"
-                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      location.pathname.startsWith('/dashboard/my-tickets') || location.pathname.startsWith('/dashboard/tickets')
+                        ? 'bg-orange-100 text-orange-600'
+                        : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                    }`}
                   >
                     Vé của tôi
                   </Link>
                   <Link
                     to="/dashboard/bills"
-                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      location.pathname.startsWith('/dashboard/bills')
+                        ? 'bg-orange-100 text-orange-600'
+                        : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                    }`}
                   >
                     Hóa đơn
                   </Link>
@@ -182,13 +212,21 @@ export default function Layout() {
                 <>
                   <Link
                     to="/dashboard/venues"
-                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      location.pathname === '/dashboard/venues'
+                        ? 'bg-orange-100 text-orange-600'
+                        : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                    }`}
                   >
                     Địa điểm
                   </Link>
                   <Link
                     to="/dashboard/reports"
-                    className="px-3 py-2 rounded-lg text-sm font-semibold text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition-all"
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                      location.pathname === '/dashboard/reports'
+                        ? 'bg-orange-100 text-orange-600'
+                        : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                    }`}
                   >
                     Báo cáo
                   </Link>
