@@ -40,10 +40,38 @@ const benefits = [
 export default function GuestLanding() {
   const navigate = useNavigate()
   const [showLoading, setShowLoading] = useState(false)
-  const highlightedEvents: any[] = []
+  const [highlightedEvents, setHighlightedEvents] = useState<any[]>([])
+  const [loadingEvents, setLoadingEvents] = useState(true)
   const [counters, setCounters] = useState({ events: 0, students: 0, organizers: 0 })
   const [hasAnimated, setHasAnimated] = useState(false)
   const statsRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        setLoadingEvents(true)
+        const response = await fetch('/api/events')
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch events')
+        }
+        
+        const data = await response.json()
+        
+        // Lấy các sự kiện đang mở (openEvents) và giới hạn 6 sự kiện
+        const events = data.openEvents || []
+        setHighlightedEvents(events.slice(0, 6))
+      } catch (error) {
+        console.error('Error fetching events:', error)
+        // Nếu không kết nối được API, hiển thị thông báo
+        setHighlightedEvents([])
+      } finally {
+        setLoadingEvents(false)
+      }
+    }
+
+    fetchEvents()
+  }, [])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -265,7 +293,14 @@ export default function GuestLanding() {
             </p>
           </header>
 
-          {highlightedEvents.length === 0 ? (
+          {loadingEvents ? (
+            <div className="text-center py-20">
+              <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 mb-6 animate-pulse">
+                <CalendarDays className="w-12 h-12 text-orange-600" />
+              </div>
+              <p className="text-xl font-semibold text-gray-500">Đang tải sự kiện...</p>
+            </div>
+          ) : highlightedEvents.length === 0 ? (
             <div className="text-center py-20">
               <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 mb-6">
                 <CalendarDays className="w-12 h-12 text-orange-600" />
@@ -277,14 +312,24 @@ export default function GuestLanding() {
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {highlightedEvents.map((event: any) => (
                 <div
-                  key={event.id}
+                  key={event.eventId}
                   className="group relative overflow-hidden rounded-3xl border-2 border-white bg-white/80 backdrop-blur-sm shadow-xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:border-orange-500"
                 >
+                  {event.bannerUrl && (
+                    <div className="relative h-48 overflow-hidden">
+                      <img 
+                        src={event.bannerUrl} 
+                        alt={event.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+                    </div>
+                  )}
                   <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-orange-500/20 to-amber-500/10 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-500"></div>
                   <div className="relative p-6 space-y-4">
                     <div className="inline-flex items-center gap-2 rounded-full bg-orange-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-orange-600">
                       <Sparkles className="w-3 h-3" />
-                      {event.eventType}
+                      {event.status}
                     </div>
                     <h3 className="text-2xl font-bold text-gray-900 group-hover:text-orange-600 transition-colors">
                       {event.title}
@@ -295,21 +340,21 @@ export default function GuestLanding() {
                     <div className="space-y-2 text-sm text-gray-500">
                       <p className="flex items-center gap-2">
                         <CalendarDays className="w-4 h-4" />
-                        {new Date(event.startDate).toLocaleString('vi-VN', {
+                        {new Date(event.startTime).toLocaleString('vi-VN', {
                           dateStyle: 'medium',
                           timeStyle: 'short',
                         })}
                       </p>
+                      {event.venueName && (
+                        <p className="flex items-center gap-2">
+                          <Award className="w-4 h-4" />
+                          {event.venueName}
+                        </p>
+                      )}
                       <p className="flex items-center gap-2">
                         <Users className="w-4 h-4" />
-                        {event.currentParticipants}/{event.maxParticipants} người đăng ký
+                        {event.maxSeats} chỗ ngồi
                       </p>
-                    </div>
-                    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-gradient-to-r from-orange-600 to-orange-500 transition-all duration-500"
-                        style={{ width: `${(event.currentParticipants / event.maxParticipants) * 100}%` }}
-                      ></div>
                     </div>
                   </div>
                 </div>
