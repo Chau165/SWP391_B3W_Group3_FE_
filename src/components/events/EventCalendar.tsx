@@ -47,8 +47,7 @@ export function EventCalendar({ events, onEventClick }: EventCalendarProps) {
       return (
         eventDate.getDate() === day &&
         eventDate.getMonth() === month &&
-        eventDate.getFullYear() === year &&
-        event.status === 'OPEN' // Only show confirmed/open events
+        eventDate.getFullYear() === year
       )
     })
   }

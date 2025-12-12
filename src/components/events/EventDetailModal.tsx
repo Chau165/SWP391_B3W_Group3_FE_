@@ -266,7 +266,7 @@ export function EventDetailModal({
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4"
       >
         <div
-          className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -395,16 +395,49 @@ export function EventDetailModal({
                     </div>
                   </div>
 
-                  {event.speakerName && (
+                  {event.speakerName && (!event.speakerBio || event.speakerBio.length <= 50) && (
                     <div className="flex items-start">
-                      <span className="text-xl mr-2">👤</span>
+                      {event.speakerAvatarUrl ? (
+                        <img 
+                          src={event.speakerAvatarUrl} 
+                          alt={event.speakerName}
+                          className="w-16 h-16 rounded-full object-cover mr-3 mt-0.5"
+                        />
+                      ) : (
+                        <span className="text-3xl mr-3">👤</span>
+                      )}
                       <div>
                         <p className="text-sm text-gray-600">Diễn giả</p>
-                        <p className="font-medium">{event.speakerName}</p>
+                        <p className="font-semibold text-lg">{event.speakerName}</p>
+                        {event.speakerBio && (
+                          <p className="text-sm text-gray-600 mt-1">{event.speakerBio}</p>
+                        )}
                       </div>
                     </div>
                   )}
                 </div>
+
+                {/* Speaker Bio - Full width if long bio or just show speaker info */}
+                {event.speakerName && event.speakerBio && event.speakerBio.length > 50 && (
+                  <div className="mb-6 pb-6 border-b bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-lg">
+                    <div className="flex items-start gap-6">
+                      {event.speakerAvatarUrl && (
+                        <img 
+                          src={event.speakerAvatarUrl} 
+                          alt={event.speakerName || 'Speaker'}
+                          className="w-32 h-32 rounded-full object-cover shadow-lg flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <h3 className="text-2xl font-bold mb-3 flex items-center text-gray-900">
+                          {!event.speakerAvatarUrl && <span className="mr-2 text-3xl">👤</span>}
+                          Về diễn giả{event.speakerName && `: ${event.speakerName}`}
+                        </h3>
+                        <p className="text-gray-700 text-base leading-relaxed">{event.speakerBio}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Tickets Info */}
                 {event.tickets && event.tickets.length > 0 && (
@@ -445,6 +478,9 @@ export function EventDetailModal({
                           >
                             <div>
                               <p className="font-medium">{ticket.name}</p>
+                              {ticket.description && (
+                                <p className="text-xs text-gray-500">{ticket.description}</p>
+                              )}
                               <p className="text-sm text-gray-600">
                                 Còn lại: {availableCount}/{total}
                               </p>

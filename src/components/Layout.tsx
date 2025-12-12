@@ -1,12 +1,9 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { LogOut, Menu, X, Bell } from 'lucide-react'
+import { LogOut, Menu, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import fptLogo from '../assets/fpt-logo.png'
 import fptLogoLoading from '../assets/fpt-logo-loading.png'
-import { getMyNotifications, type NotificationItem } from '../services/notificationService'
-import { format } from 'date-fns'
-import { vi } from 'date-fns/locale'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -14,9 +11,6 @@ export default function Layout() {
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showLoading, setShowLoading] = useState(false)
-  const [notifications, setNotifications] = useState<NotificationItem[]>([])
-  const [showNotifications, setShowNotifications] = useState(false)
-  const [loadingNotifications, setLoadingNotifications] = useState(false)
 
   // Show loading overlay when location changes
   useEffect(() => {
@@ -28,89 +22,9 @@ export default function Layout() {
     return () => clearTimeout(timer)
   }, [location.pathname])
 
-  // Fetch notifications on mount and when user changes
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!user) return
-      
-      try {
-        const token = localStorage.getItem('token')
-        if (!token) return
-        
-        setLoadingNotifications(true)
-        const data = await getMyNotifications(token)
-        
-        // Get read notifications from localStorage
-        const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '{}')
-        
-        // Merge with localStorage read status
-        const mergedData = data.map(notification => ({
-          ...notification,
-          read: readNotifications[notification.id] === true || notification.read
-        }))
-        
-        setNotifications(mergedData)
-      } catch (error) {
-        console.error('Error fetching notifications:', error)
-      } finally {
-        setLoadingNotifications(false)
-      }
-    }
-
-    fetchNotifications()
-  }, [user])
-
   const handleLogout = () => {
     logout()
     navigate('/')
-  }
-
-  const handleNotificationClick = async (notification: NotificationItem) => {
-    // Mark as read immediately in frontend state
-    setNotifications(prev => 
-      prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
-    )
-    
-    // Save to localStorage
-    const readNotifications = JSON.parse(localStorage.getItem('readNotifications') || '{}')
-    readNotifications[notification.id] = true
-    localStorage.setItem('readNotifications', JSON.stringify(readNotifications))
-    
-    // TODO: Call backend API to mark notification as read permanently
-    // try {
-    //   const token = localStorage.getItem('token')
-    //   await fetch(`/api/notifications/${notification.id}/read`, {
-    //     method: 'PUT',
-    //     headers: {
-    //       'Authorization': `Bearer ${token}`,
-    //       'Content-Type': 'application/json',
-    //     },
-    //   })
-    // } catch (error) {
-    //   console.error('Failed to mark notification as read:', error)
-    // }
-    
-    let targetUrl = notification.linkUrl
-    
-    // For organizers, both approved and rejected event notifications should go to event-requests page
-    if (user?.role === 'ORGANIZER') {
-      // Check if it's an event-related notification (approved, rejected, or any event notification)
-      if (targetUrl?.startsWith('/events') || !targetUrl || targetUrl === '' || 
-          notification.title.includes('sự kiện') || notification.content.includes('sự kiện')) {
-        targetUrl = '/dashboard/event-requests'
-      }
-    } 
-    // For non-organizers, prepend /dashboard if needed
-    else if (targetUrl?.startsWith('/events')) {
-      targetUrl = `/dashboard${targetUrl}`
-    } else if (targetUrl && !targetUrl.startsWith('/dashboard')) {
-      targetUrl = `/dashboard${targetUrl}`
-    }
-    
-    if (targetUrl) {
-      navigate(targetUrl)
-      setShowNotifications(false)
-    }
   }
 
   const isOrganizer = user?.role === 'ORGANIZER'
@@ -236,22 +150,6 @@ export default function Layout() {
 
             {/* User Info */}
             <div className="hidden md:flex items-center space-x-4">
-              {/* Notification Button */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowNotifications(!showNotifications)}
-                  className="p-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all relative"
-                  title="Thông báo"
-                >
-                  <Bell size={20} />
-                  {notifications.filter(n => !n.read).length > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
-                      {notifications.filter(n => !n.read).length}
-                    </span>
-                  )}
-                </button>
-              </div>
-
               <div className="text-right">
                 <p className="text-sm font-semibold text-gray-900">{user?.fullName}</p>
                 <p className="text-xs font-medium text-orange-600">{user?.role}</p>
@@ -377,64 +275,6 @@ export default function Layout() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Outlet />
       </main>
-
-      {/* Notification Dropdown */}
-      {showNotifications && (
-        <>
-          {/* Backdrop */}
-          <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-          
-          {/* Dropdown Panel */}
-          <div className="fixed top-16 right-4 z-50 w-96 bg-white rounded-lg shadow-2xl border border-gray-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">Thông báo</h2>
-            </div>
-            
-            <div className="overflow-y-auto max-h-[calc(100vh-200px)]">
-              {loadingNotifications ? (
-                <div className="p-8 text-center text-gray-500">
-                  Đang tải thông báo...
-                </div>
-              ) : notifications.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  Chưa có thông báo nào.
-                </div>
-              ) : (
-                <div>
-                  {notifications.map((notification) => (
-                    <div
-                      key={notification.id}
-                      onClick={() => handleNotificationClick(notification)}
-                      className={`p-3 hover:bg-gray-50 transition-colors cursor-pointer border-b border-gray-100 last:border-b-0 ${
-                        !notification.read ? 'bg-blue-50' : ''
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex-shrink-0 mt-1">
-                          <div className={`h-2.5 w-2.5 rounded-full ${
-                            !notification.read ? 'bg-blue-500' : 'bg-transparent'
-                          }`} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className={`text-sm mb-1 ${!notification.read ? 'font-semibold text-gray-900' : 'font-medium text-gray-800'}`}>
-                            {notification.title}
-                          </h3>
-                          <p className="text-sm text-gray-600 mb-1">
-                            {notification.content}
-                          </p>
-                          <p className="text-xs text-blue-600 font-medium">
-                            {format(new Date(notification.createdAt), 'PPp', { locale: vi })}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
 
       {/* Loading Overlay */}
       {showLoading && (
