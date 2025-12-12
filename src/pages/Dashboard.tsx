@@ -1,15 +1,15 @@
 // src/pages/Dashboard.tsx
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Calendar } from 'lucide-react'
 import { format, isSameDay, startOfDay } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import type { EventListItem } from '../types/event'
+import type { EventListItem, EventDetail } from '../types/event'
+import { EventDetailModal } from '../components/events/EventDetailModal'
 
 export default function Dashboard() {
   const { user } = useAuth()
-  const navigate = useNavigate()
   // Get token from localStorage instead of user object
   const token = localStorage.getItem('token')
   const [events, setEvents] = useState<EventListItem[]>([])
@@ -18,6 +18,12 @@ export default function Dashboard() {
 
   // 3 tab: đang mở / sắp mở / đã kết thúc
   const [activeTab, setActiveTab] = useState<'open' | 'upcoming' | 'closed'>('open')
+
+  // Event detail modal state
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<EventDetail | null>(null)
+  const [loadingDetail, setLoadingDetail] = useState(false)
+  const [detailError, setDetailError] = useState<string | null>(null)
 
   // ===== Lấy danh sách sự kiện =====
   useEffect(() => {
@@ -74,9 +80,52 @@ export default function Dashboard() {
     fetchEvents()
   }, [token])
 
-  // ===== Navigate to event detail page =====
-  const openEventDetail = (eventId: number) => {
-    navigate(`/dashboard/events/${eventId}`)
+  // ===== Open event detail modal and fetch event details =====
+  const openEventDetail = async (eventId: number) => {
+    if (!token) return
+
+    setIsDetailOpen(true)
+    setSelectedEvent(null)
+    setLoadingDetail(true)
+    setDetailError(null)
+
+    try {
+      const res = await fetch(`/api/events/detail?id=${eventId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error('Token không hợp lệ hoặc đã hết hạn')
+        }
+        if (res.status === 404) {
+          // Hiển thị thông báo cụ thể khi BE trả về 404
+          setDetailError('Sự kiện này chưa diễn ra hoặc đã đóng. Xin bạn thử lại sau.')
+          setSelectedEvent(null)
+          setLoadingDetail(false)
+          return
+        }
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      const data: EventDetail = await res.json()
+      setSelectedEvent(data)
+    } catch (err: any) {
+      console.error('Lỗi load event detail:', err)
+      setDetailError(err.message ?? 'Không thể tải chi tiết sự kiện')
+    } finally {
+      setLoadingDetail(false)
+    }
+  }
+
+  const closeModal = () => {
+    setIsDetailOpen(false)
+    setSelectedEvent(null)
+    setDetailError(null)
   }
 
   // ===== Phân loại sự kiện theo trạng thái =====
@@ -379,6 +428,16 @@ export default function Dashboard() {
           Xem tất cả sự kiện →
         </Link>
       </div>
+
+      {/* Event Detail Modal */}
+      <EventDetailModal
+        isOpen={isDetailOpen}
+        onClose={closeModal}
+        event={selectedEvent}
+        loading={loadingDetail}
+        error={detailError}
+        token={token}
+      />
     </div>
   )
 }
