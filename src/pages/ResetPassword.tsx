@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
 import axios from 'axios'
+import fptLogo from '../assets/fpt-logo.png'
+import fptCampus from '../assets/dai-hoc-fpt-tp-hcm-1.jpeg'
 
 const API_URL = '/api'
 
@@ -73,7 +75,7 @@ export default function ResetPassword() {
         setStep('otp')
         setOtpCountdown(60)
         setError('')
-        alert('Mã OTP đã được gửi đến email của bạn!')
+        showToast('success', 'Mã OTP đã được gửi đến email của bạn!')
       } else {
         setError(response.data.message || 'Gửi OTP thất bại')
       }
@@ -98,7 +100,7 @@ export default function ResetPassword() {
       if (response.data.status === 'success' || response.status === 200) {
         setOtpCountdown(60)
         setError('')
-        alert('Mã OTP mới đã được gửi lại!')
+        showToast('success', 'Mã OTP mới đã được gửi lại!')
       }
     } catch (err: any) {
       console.error('Resend OTP Error:', err)
@@ -157,7 +159,7 @@ export default function ResetPassword() {
       console.log('Response status:', response.status)
 
       if (response.data.status === 'success' || response.status === 200) {
-        alert('Đặt lại mật khẩu thành công! Vui lòng đăng nhập.')
+        showToast('success', 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập.')
         navigate('/login')
       } else {
         setError(response.data.message || 'Đặt lại mật khẩu thất bại')
@@ -176,15 +178,32 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+    <div 
+      className="min-h-screen flex items-center justify-center px-4 relative"
+      style={{
+        backgroundImage: `url(${fptCampus})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40"></div>
+      
+      <div className="max-w-md w-full bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-8 border-2 border-white/50 relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <GraduationCap className="w-8 h-8 text-white" />
+          <div className="flex justify-center mb-4">
+            <img 
+              src={fptLogo} 
+              alt="FPT Education" 
+              className="h-20 w-auto"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">FPT Events</h1>
+          <h1 className="text-3xl font-bold text-gray-900">
+            {step === 'email' ? 'Đặt lại mật khẩu' : 'Xác thực OTP'}
+          </h1>
           <p className="text-gray-600 mt-2">
-            {step === 'email' ? 'Đặt lại mật khẩu' : 'Nhập mã OTP và mật khẩu mới'}
+            {step === 'email' ? 'Nhập email để nhận mã OTP' : 'Nhập mã OTP và mật khẩu mới'}
           </p>
         </div>
 

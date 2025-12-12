@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
 import axios from 'axios'
 import ReCAPTCHA from 'react-google-recaptcha'
+import fptLogo from '../assets/fpt-logo.png'
+import fptCampus from '../assets/dai-hoc-fpt-tp-hcm-1.jpeg'
 
 // Use proxy to avoid CORS issues in development
 const API_URL = '/api'
@@ -160,9 +162,9 @@ export default function Register() {
       setError('')
       
       if (response.data.status === 'success' || response.status === 200) {
-        alert('Mã OTP mới đã được gửi lại!')
+        showToast('success', 'Mã OTP mới đã được gửi lại!')
       } else {
-        alert('Mã OTP đã được gửi lại. Vui lòng kiểm tra email.')
+        showToast('info', 'Mã OTP đã được gửi lại. Vui lòng kiểm tra email.')
       }
     } catch (err: any) {
       console.error('Resend OTP Error:', err)
@@ -189,7 +191,7 @@ export default function Register() {
       console.log('Register Response:', response.data)
 
       if (response.data.status === 'success') {
-        alert('Đăng ký thành công! Vui lòng đăng nhập.')
+        showToast('success', 'Đăng ký thành công! Vui lòng đăng nhập.')
         navigate('/login')
       } else {
         setError(response.data.message || 'Đăng ký thất bại')
@@ -234,14 +236,29 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl p-8">
+    <div 
+      className="min-h-screen flex items-center justify-center px-4 relative"
+      style={{
+        backgroundImage: `url(${fptCampus})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40"></div>
+      
+      <div className="max-w-md w-full bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-8 border-2 border-white/50 relative z-10">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-            <GraduationCap className="w-8 h-8 text-white" />
+          <div className="flex justify-center mb-4">
+            <img 
+              src={fptLogo} 
+              alt="FPT Education" 
+              className="h-20 w-auto"
+            />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">FPT Events</h1>
-          <p className="text-gray-600 mt-2">Tạo tài khoản mới</p>
+          <h1 className="text-3xl font-bold text-gray-900">Tạo tài khoản</h1>
+          <p className="text-gray-600 mt-2">Đăng ký vào hệ thống</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">

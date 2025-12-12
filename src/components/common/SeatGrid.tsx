@@ -14,11 +14,12 @@ export type Seat = {
 interface SeatGridProps {
   seats: Seat[]
   loading?: boolean
-  selectedSeat: Seat | null
+  selectedSeats?: Seat[]
   onSeatSelect: (seat: Seat | null) => void
+  maxReached?: boolean
 }
 
-export function SeatGrid({ seats, loading = false, selectedSeat, onSeatSelect }: SeatGridProps) {
+export function SeatGrid({ seats, loading = false, selectedSeats = [], onSeatSelect, maxReached = false }: SeatGridProps) {
   const [error] = useState<string | null>(null)
 
   if (loading) {
@@ -70,18 +71,23 @@ export function SeatGrid({ seats, loading = false, selectedSeat, onSeatSelect }:
   const getSeatColor = (seat: Seat, isSelected: boolean) => {
     if (isSelected) return 'border-blue-600 bg-blue-100 font-semibold'
     
-    // Reserved, booked, and occupied seats are red
-    if (seat.status === 'RESERVED' || seat.status === 'OCCUPIED' || seat.status === 'BOOKED') {
-      return 'border-red-300 bg-red-50 cursor-not-allowed'
+    // Nếu đã đạt giới hạn và ghế không được chọn -> trắng
+    if (maxReached && !isSelected) {
+      return 'border-gray-200 bg-white cursor-not-allowed text-transparent'
     }
     
-    // Available seats: VIP = yellow, STANDARD = grey
-    if (seat.seatType === 'VIP') {
-      return 'border-yellow-300 bg-yellow-50 hover:bg-yellow-100'
+    // BOOKED/RESERVED/OCCUPIED (đã đặt) = Đỏ
+    if (seat.status === 'BOOKED' || seat.status === 'RESERVED' || seat.status === 'OCCUPIED') {
+      return 'border-red-400 bg-red-100 cursor-not-allowed text-red-800'
     }
     
-    // STANDARD or default
-    return 'border-gray-300 bg-gray-50 hover:bg-gray-100'
+    // HOLD (đang đặt) = Xám
+    if (seat.status === 'HOLD') {
+      return 'border-gray-400 bg-gray-200 cursor-not-allowed text-gray-700'
+    }
+    
+    // AVAILABLE (tất cả loại ghế) = Xanh lá
+    return 'border-green-400 bg-green-50 hover:bg-green-100 text-green-800'
   }
 
   // Identify VIP rows
@@ -132,14 +138,14 @@ export function SeatGrid({ seats, loading = false, selectedSeat, onSeatSelect }:
                     <button
                       key={seat.seatId}
                       type="button"
-                      onClick={() => seat.status !== 'OCCUPIED' && seat.status !== 'RESERVED' && seat.status !== 'BOOKED' && onSeatSelect(seat)}
-                      disabled={seat.status === 'OCCUPIED' || seat.status === 'RESERVED' || seat.status === 'BOOKED'}
+                      onClick={() => seat.status === 'AVAILABLE' && onSeatSelect(seat)}
+                      disabled={seat.status !== 'AVAILABLE'}
                       className={`w-12 h-10 border-2 rounded-lg text-xs font-medium transition-colors ${
-                        getSeatColor(seat, selectedSeat?.seatId === seat.seatId)
+                        getSeatColor(seat, selectedSeats.some(s => s.seatId === seat.seatId))
                       }`}
                       title={`${seat.seatCode} (${seat.seatType}): ${seat.status}`}
                     >
-                      {seat.seatCode}
+                      {maxReached && !selectedSeats.some(s => s.seatId === seat.seatId) ? '' : seat.seatCode}
                     </button>
                   ) : (
                     <div key={`empty-${row}-${index}`} className="w-12 h-10"></div>
@@ -156,16 +162,16 @@ export function SeatGrid({ seats, loading = false, selectedSeat, onSeatSelect }:
         <p className="text-xs font-semibold text-gray-700 mb-2">Chú thích:</p>
         <div className="flex flex-wrap gap-3 text-xs">
           <div className="flex items-center">
-            <div className="w-6 h-6 bg-yellow-50 border-2 border-yellow-300 rounded mr-1.5"></div>
-            <span>VIP (Trống)</span>
+            <div className="w-6 h-6 bg-green-50 border-2 border-green-400 rounded mr-1.5"></div>
+            <span>Ghế trống</span>
           </div>
           <div className="flex items-center">
-            <div className="w-6 h-6 bg-gray-50 border-2 border-gray-300 rounded mr-1.5"></div>
-            <span>Standard (Trống)</span>
+            <div className="w-6 h-6 bg-gray-200 border-2 border-gray-400 rounded mr-1.5"></div>
+            <span>Đang đặt</span>
           </div>
           <div className="flex items-center">
-            <div className="w-6 h-6 bg-red-50 border-2 border-red-300 rounded mr-1.5"></div>
-            <span>Đã đặt/Đã ngồi</span>
+            <div className="w-6 h-6 bg-red-100 border-2 border-red-400 rounded mr-1.5"></div>
+            <span>Đã đặt</span>
           </div>
         </div>
       </div>

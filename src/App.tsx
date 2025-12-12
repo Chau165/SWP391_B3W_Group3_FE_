@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
 import Login from './pages/Login.tsx'
 import Register from './pages/Register.tsx'
 import ResetPassword from './pages/ResetPassword.tsx'
@@ -73,7 +74,26 @@ function AppRoutes() {
         <Route path="reports" element={<Reports />} />
         <Route path="image-upload-test" element={<ImageUploadTest />} />
       </Route>
-      <Route path="/" element={<GuestLanding />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Dashboard />} />
+      </Route>
+      <Route
+        path="/my-tickets"
+        element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<MyTickets />} />
+      </Route>
     </Routes>
   )
 }
@@ -81,9 +101,11 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
+      <ToastProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+      </ToastProvider>
     </AuthProvider>
   )
 }

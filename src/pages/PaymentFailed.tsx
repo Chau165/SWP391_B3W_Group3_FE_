@@ -1,21 +1,16 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { XCircle } from 'lucide-react'
-import { useEffect, useMemo } from 'react'
 
 export default function PaymentFailed() {
   const location = useLocation()
   const navigate = useNavigate()
-  const params = useMemo(() => new URLSearchParams(location.search), [location.search])
-  const vnpResponseCode = params.get('vnp_ResponseCode')
-  const vnpMessage = params.get('message')
-  const status = params.get('status')
+  const params = new URLSearchParams(location.search)
 
-  // If gateway sent success to failed URL, reroute to success
-  useEffect(() => {
-    if (status === 'success') {
-      navigate('/payment-success' + location.search, { replace: true })
-    }
-  }, [status, navigate, location.search])
+  const vnpResponseCode = params.get('vnp_ResponseCode')
+  const vnpMessage =
+    params.get('message') ||
+    params.get('reason') ||
+    params.get('vnp_Message')
 
   return (
     <div className="flex items-center justify-center min-h-[400px]">
@@ -31,16 +26,14 @@ export default function PaymentFailed() {
           {vnpMessage ? ` - ${vnpMessage}` : ''}
         </p>
         <div className="space-y-3">
-          <Link
-            to="/dashboard"
+          <button
+            onClick={() => navigate('/')}
             className="block w-full px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             Về Dashboard
-          </Link>
+          </button>
         </div>
       </div>
     </div>
   )
 }
-
-

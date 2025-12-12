@@ -1,34 +1,25 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { CheckCircle2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 export default function PaymentSuccess() {
   const location = useLocation()
   const navigate = useNavigate()
-  const params = new URLSearchParams(location.search)
-  const [ticketId, setTicketId] = useState<string | null>(null)
+  const [ticketIds, setTicketIds] = useState<string | null>(null)
 
-  // Guard: only show success if VNPay response indicates success
   useEffect(() => {
-    const vnpResponseCode = params.get('vnp_ResponseCode')
-    const vnpTxnNo = params.get('vnp_TransactionNo')
-    const ticket = params.get('ticketId')
+    const params = new URLSearchParams(location.search)
+
     const status = params.get('status')
-
-    // VNPay success code is "00". Anything else -> failed.
-    const isSuccess = vnpResponseCode === '00' || status === 'success'
-    if (!isSuccess) {
+    // Nếu backend lỡ redirect kèm status khác "success" thì chuyển sang trang failed
+    if (status && status !== 'success') {
       navigate('/payment-failed' + location.search, { replace: true })
       return
     }
 
-    // Optional: must have a transaction number or ticketId
-    if (!vnpTxnNo && !ticket) {
-      navigate('/payment-failed' + location.search, { replace: true })
-      return
-    }
-
-    setTicketId(ticket)
+    // BE hiện tại gửi ticketIds, fallback về ticketId nếu cần
+    const ticketsParam = params.get('ticketIds') ?? params.get('ticketId')
+    setTicketIds(ticketsParam)
   }, [location.search, navigate])
 
   return (
@@ -43,25 +34,28 @@ export default function PaymentSuccess() {
           <span className="font-semibold">Vé của tôi</span>.
         </p>
 
-        {ticketId && (
+        {ticketIds && (
           <p className="text-sm text-gray-500 mb-4">
-            Mã vé: <span className="font-mono">{ticketId}</span>
+            Mã vé:{' '}
+            <span className="font-mono">
+              {ticketIds}
+            </span>
           </p>
         )}
 
         <div className="space-y-3">
-          <Link
-            to="/dashboard/my-tickets"
+          <button
+            onClick={() => navigate('/my-tickets')}
             className="block w-full px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700"
           >
-            Xem vé của tôi
-          </Link>
-          <Link
-            to="/dashboard"
+            Xem Vé của tôi
+          </button>
+          <button
+            onClick={() => navigate('/')}
             className="block w-full px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
           >
             Về Dashboard
-          </Link>
+          </button>
         </div>
       </div>
     </div>

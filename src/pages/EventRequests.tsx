@@ -1,11 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import { CheckCircle2, XCircle, FileClock, PlusCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { EventRequestDetailModal } from '../components/events/EventRequestDetailModal'
 import { ProcessRequestModal } from '../components/events/ProcessRequestModal'
 
-type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UPDATING' | 'EXPIRED'
 
 type EventRequest = {
   requestId: number
@@ -23,6 +24,7 @@ type EventRequest = {
   processedAt?: string
   organizerNote?: string
   createdEventId?: number
+  bannerUrl?: string
 }
 
 const getStatusLabel = (status: EventRequestStatus) => {
@@ -31,6 +33,10 @@ const getStatusLabel = (status: EventRequestStatus) => {
       return 'Đã duyệt'
     case 'REJECTED':
       return 'Bị từ chối'
+    case 'UPDATING':
+      return 'Chờ Cập Nhật Thông Tin'
+    case 'EXPIRED':
+      return 'Hết hạn'
     default:
       return 'Đang chờ duyệt'
   }
@@ -42,6 +48,8 @@ const getStatusClass = (status: EventRequestStatus) => {
       return 'bg-green-100 text-green-800'
     case 'REJECTED':
       return 'bg-red-100 text-red-800'
+    case 'UPDATING':
+      return 'bg-blue-100 text-blue-800'
     default:
       return 'bg-yellow-100 text-yellow-800'
   }
@@ -49,6 +57,7 @@ const getStatusClass = (status: EventRequestStatus) => {
 
 export default function EventRequests() {
   const { user } = useAuth()
+  const { showToast } = useToast()
   const navigate = useNavigate()
   const isStaff = user?.role === 'STAFF'
   const isOrganizer = user?.role === 'ORGANIZER'
@@ -86,21 +95,60 @@ export default function EventRequests() {
         const data = await response.json()
         console.log('Event requests data:', data)
         
+        // Fetch all events to check banner URL
+        const eventsResponse = await fetch('http://localhost:3000/api/events', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'ngrok-skip-browser-warning': 'true'
+          }
+        })
+        
+        let eventsMap = new Map()
+        if (eventsResponse.ok) {
+          const eventsData = await eventsResponse.json()
+          const allEvents = [
+            ...(eventsData.openEvents || []),
+            ...(eventsData.closedEvents || [])
+          ]
+          // Create map of eventId to bannerUrl
+          allEvents.forEach((event: any) => {
+            eventsMap.set(event.eventId, event.bannerUrl)
+          })
+        }
+        
+        // Function to update request status based on banner URL
+        const updateRequestStatus = (req: EventRequest): EventRequest => {
+          if (req.status === 'APPROVED' && req.createdEventId) {
+            const bannerUrl = eventsMap.get(req.createdEventId)
+            if (!bannerUrl || bannerUrl.trim() === '') {
+              return { ...req, status: 'UPDATING' as EventRequestStatus, bannerUrl: undefined }
+            }
+            return { ...req, bannerUrl }
+          }
+          return req
+        }
+        
         // Handle new API structure: { pending: [], approved: [], rejected: [] }
         if (data.pending || data.approved || data.rejected) {
           const pending = Array.isArray(data.pending) ? data.pending : []
-          const processed = [
-            ...(Array.isArray(data.approved) ? data.approved : []),
-            ...(Array.isArray(data.rejected) ? data.rejected : [])
-          ]
+          let approved = Array.isArray(data.approved) ? data.approved.map(updateRequestStatus) : []
+          const rejected = Array.isArray(data.rejected) ? data.rejected : []
+          
+          // Separate UPDATING from APPROVED
+          const updating = approved.filter((req: EventRequest) => req.status === 'UPDATING')
+          approved = approved.filter((req: EventRequest) => req.status === 'APPROVED')
+          
+          const processed = [...approved, ...rejected, ...updating]
+          
           setPendingRequests(pending)
           setProcessedRequests(processed)
           setRequests([...pending, ...processed])
         } else if (Array.isArray(data)) {
           // Handle legacy flat array structure
-          setRequests(data)
-          setPendingRequests(data.filter(req => req.status === 'PENDING'))
-          setProcessedRequests(data.filter(req => req.status === 'APPROVED' || req.status === 'REJECTED'))
+          const updatedData = data.map(updateRequestStatus)
+          setRequests(updatedData)
+          setPendingRequests(updatedData.filter(req => req.status === 'PENDING'))
+          setProcessedRequests(updatedData.filter(req => req.status === 'APPROVED' || req.status === 'REJECTED' || req.status === 'UPDATING'))
         }
       } else {
         throw new Error('Failed to fetch event requests')
@@ -126,11 +174,16 @@ export default function EventRequests() {
   const handleEditEvent = () => {
     if (!selectedRequest) return
     
-    // For approved events, use createdEventId; otherwise use requestId
-    const eventId = selectedRequest.status === 'APPROVED' && selectedRequest.createdEventId 
-      ? selectedRequest.createdEventId 
-      : selectedRequest.requestId
+    // Only UPDATING status can edit
+    if (selectedRequest.status !== 'UPDATING') return
     
+    // Use createdEventId for updating events
+    const eventId = selectedRequest.createdEventId || selectedRequest.requestId
+    
+    // Close modal before navigating
+    setIsModalOpen(false)
+    
+    // Navigate to edit page
     navigate(`/dashboard/events/${eventId}/edit`)
   }
 
@@ -169,15 +222,17 @@ export default function EventRequests() {
       })
 
       if (response.ok) {
-        alert(processAction === 'APPROVE' ? 'Đã duyệt yêu cầu thành công!' : 'Đã từ chối yêu cầu.')
+        showToast('success', processAction === 'APPROVE' ? 'Đã duyệt yêu cầu thành công!' : 'Đã từ chối yêu cầu.')
         fetchEventRequests()
       } else {
         const errorData = await response.text()
-        throw new Error(errorData || 'Failed to process request')
+        const errorMessage = errorData || 'Failed to process request'
+        showToast('error', errorMessage)
+        throw new Error(errorMessage)
       }
     } catch (error) {
       console.error('Error processing request:', error)
-      alert('Không thể xử lý yêu cầu. Vui lòng thử lại.')
+      showToast('error', 'Không thể xử lý yêu cầu. Vui lòng thử lại.')
     }
   }
 

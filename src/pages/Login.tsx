@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
 import ReCAPTCHA from 'react-google-recaptcha'
 import fptLogo from '../assets/fpt-logo.png'
+import fptCampus from '../assets/dai-hoc-fpt-tp-hcm-1.jpeg'
 
 // Use proxy to avoid CORS issues in development
 const API_URL = '/api'
@@ -24,7 +25,7 @@ interface FormData {
 // 4. Copy Site Key và dán vào đây
 //const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' // Test key - THAY BẰNG SITE KEY THẬT
 const RECAPTCHA_SITE_KEY = '6LcRNiUsAAAAAOTRRAnoQAHXQNfIFx5v49ZAbnsK' 
-const USE_REAL_RECAPTCHA = true // Đổi thành false để dùng TEST_BYPASS khi debug nhanh
+const USE_REAL_RECAPTCHA = false // Đổi thành false để dùng TEST_BYPASS khi debug nhanh
 
 export default function Login() {
   const [formData, setFormData] = useState<FormData>({
@@ -144,8 +145,19 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100 px-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl p-8 border-2 border-white">
+    <div 
+      className="min-h-screen flex items-center justify-center px-4 relative"
+      style={{
+        backgroundImage: `url(${fptCampus})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Overlay */}
+      <div className="absolute inset-0 bg-black/40"></div>
+      
+      <div className="max-w-md w-full bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-8 border-2 border-white/50 relative z-10">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <img 

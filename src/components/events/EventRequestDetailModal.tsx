@@ -3,7 +3,7 @@ import { X, Calendar, Users, FileText, User, Clock, Edit } from 'lucide-react'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 
-type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
+type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UPDATING' | 'EXPIRED'
 
 interface EventRequestDetailModalProps {
   isOpen: boolean
@@ -24,6 +24,7 @@ interface EventRequestDetailModalProps {
     processedAt?: string
     organizerNote?: string
     createdEventId?: number
+    bannerUrl?: string
   } | null
   userRole?: string
   onEdit?: () => void
@@ -35,6 +36,10 @@ const getStatusLabel = (status: EventRequestStatus) => {
       return 'Đã duyệt'
     case 'REJECTED':
       return 'Bị từ chối'
+    case 'UPDATING':
+      return 'Chờ Cập Nhật Thông Tin'
+    case 'EXPIRED':
+      return 'Hết hạn'
     default:
       return 'Đang chờ duyệt'
   }
@@ -46,6 +51,8 @@ const getStatusClass = (status: EventRequestStatus) => {
       return 'bg-green-100 text-green-800'
     case 'REJECTED':
       return 'bg-red-100 text-red-800'
+    case 'UPDATING':
+      return 'bg-blue-100 text-blue-800'
     default:
       return 'bg-yellow-100 text-yellow-800'
   }
@@ -214,7 +221,7 @@ export function EventRequestDetailModal({
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            {userRole === 'ORGANIZER' && request.status === 'APPROVED' && request.createdEventId && onEdit && (
+            {userRole === 'ORGANIZER' && request.status === 'UPDATING' && request.createdEventId && onEdit && (
               <button
                 onClick={onEdit}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

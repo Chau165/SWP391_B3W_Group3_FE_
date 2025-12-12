@@ -6,12 +6,15 @@ import { useAuth } from '../contexts/AuthContext'
 type PaymentState = {
   eventId: number
   categoryTicketId: number
-  seatId: number
+  seatIds?: number[]
   eventTitle?: string
   ticketName?: string
-  seatCode?: string
+  ticketBreakdown?: Array<{ name: string; count: number; price: number }>
+  seatCodes?: string[]
   rowNo?: string
-  price?: number
+  pricePerTicket?: number
+  quantity?: number
+  totalAmount?: number
 }
 
 export default function Payment() {
@@ -23,7 +26,7 @@ export default function Payment() {
 
   const handlePay = () => {
     // Thiếu state → quay lại dashboard
-    if (!state.eventId || !state.categoryTicketId || !state.seatId) {
+    if (!state.eventId || !state.categoryTicketId || !state.seatIds || state.seatIds.length === 0) {
       alert('Thiếu thông tin vé, vui lòng chọn lại vé từ Dashboard.')
       navigate('/dashboard')
       return
@@ -40,7 +43,7 @@ export default function Payment() {
       userId: String(userId),
       eventId: String(state.eventId),
       categoryTicketId: String(state.categoryTicketId),
-      seatId: String(state.seatId),
+      seatIds: state.seatIds.join(','),
     })
 
     // Nhờ proxy Vite, /api/... → http://localhost:8084/FPTEventManagement/...
@@ -84,28 +87,45 @@ export default function Payment() {
                 {state.eventTitle || 'Sự kiện demo (mock)'}
               </span>
             </p>
-            {state.ticketName && (
+            {state.ticketBreakdown && state.ticketBreakdown.length > 0 ? (
+              <p>
+                Loại vé:{' '}
+                <span className="font-medium">
+                  {state.ticketBreakdown.map((t, idx) => (
+                    <span key={idx}>
+                      {t.name} x{t.count}
+                      {idx < state.ticketBreakdown!.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </span>
+              </p>
+            ) : state.ticketName ? (
               <p>
                 Loại vé:{' '}
                 <span className="font-medium">{state.ticketName}</span>
               </p>
-            )}
-            {(state.rowNo || state.seatCode) && (
+            ) : null}
+            {(state.rowNo || (state.seatCodes && state.seatCodes.length > 0)) && (
               <p>
                 Vị trí ghế:{' '}
                 <span className="font-medium">
                   {state.rowNo ? `Hàng ${state.rowNo}` : ''}
-                  {state.rowNo && state.seatCode ? ', ' : ''}
-                  {state.seatCode ? `Ghế ${state.seatCode}` : ''}
+                  {state.rowNo && state.seatCodes && state.seatCodes.length > 0 ? ', ' : ''}
+                  {state.seatCodes && state.seatCodes.length > 0 ? `Ghế ${state.seatCodes.join(', ')}` : ''}
                 </span>
               </p>
             )}
             <p>
               Số tiền:{' '}
               <span className="font-semibold text-gray-900">
-                {(state.price || 0).toLocaleString('vi-VN')} đ
+                {(state.totalAmount || state.pricePerTicket || 0).toLocaleString('vi-VN')} đ
               </span>
             </p>
+            {state.quantity && state.pricePerTicket && (
+              <p className="text-xs text-gray-500">
+                {state.quantity} x {(state.pricePerTicket).toLocaleString('vi-VN')} đ
+              </p>
+            )}
           </div>
         </div>
 
