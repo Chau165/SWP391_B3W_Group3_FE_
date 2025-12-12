@@ -1,89 +1,52 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useParams, useNavigate, Link } from 'react-router-dom'
+import { ArrowLeft, Upload, X, Plus, Trash2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { uploadEventBanner, validateImageFile } from '../utils/imageUpload'
 import { useToast } from '../contexts/ToastContext'
-import { CheckCircle2, XCircle, FileClock, PlusCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { EventRequestDetailModal } from '../components/events/EventRequestDetailModal'
-import { ProcessRequestModal } from '../components/events/ProcessRequestModal'
 
-type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UPDATING'
+type TicketType = 'VIP' | 'STANDARD'
 
-type EventRequest = {
-  requestId: number
-  requesterId: number
-  requesterName?: string
-  title: string
+type Ticket = {
+  name: TicketType
   description: string
-  preferredStartTime: string
-  preferredEndTime: string
-  expectedCapacity: number
-  status: EventRequestStatus
-  createdAt: string
-  processedBy?: number
-  processedByName?: string
-  processedAt?: string
-  organizerNote?: string
-  createdEventId?: number
-  bannerUrl?: string
+  price: number
+  maxQuantity: number
+  status: 'ACTIVE'
 }
 
-const getStatusLabel = (status: EventRequestStatus) => {
-  switch (status) {
-    case 'APPROVED':
-      return 'Đã duyệt'
-    case 'REJECTED':
-      return 'Bị từ chối'
-    case 'UPDATING':
-      return 'Đang cập nhật'
-    default:
-      return 'Đang chờ duyệt'
-  }
-}
-
-const getStatusClass = (status: EventRequestStatus) => {
-  switch (status) {
-    case 'APPROVED':
-      return 'bg-green-100 text-green-800'
-    case 'REJECTED':
-      return 'bg-red-100 text-red-800'
-    case 'UPDATING':
-      return 'bg-blue-100 text-blue-800'
-    default:
-      return 'bg-yellow-100 text-yellow-800'
-  }
-}
-
-export default function EventRequests() {
-  const { user } = useAuth()
-  const { showToast } = useToast()
+export default function EventEdit() {
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const isStaff = user?.role === 'STAFF'
-  const isOrganizer = user?.role === 'ORGANIZER'
-  const [requests, setRequests] = useState<EventRequest[]>([])
-  const [pendingRequests, setPendingRequests] = useState<EventRequest[]>([])
-  const [processedRequests, setProcessedRequests] = useState<EventRequest[]>([])
-  const [loading, setLoading] = useState(true)
+  const { showToast } = useToast()
+  
+  const [loading, setLoading] = useState(false)
+   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [selectedRequest, setSelectedRequest] = useState<EventRequest | null>(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [isProcessModalOpen, setIsProcessModalOpen] = useState(false)
-  const [processAction, setProcessAction] = useState<'APPROVE' | 'REJECT'>('APPROVE')
-  const [requestToProcess, setRequestToProcess] = useState<EventRequest | null>(null)
-  const [activeTab, setActiveTab] = useState<'pending' | 'processed'>('pending')
+  
+  const [speaker, setSpeaker] = useState({
+    fullName: '',
+    bio: '',
+    email: '',
+    phone: '',
+    avatarUrl: ''
+  })
 
-  useEffect(() => {
-    fetchEventRequests()
-  }, [isStaff, isOrganizer])
+  const [tickets, setTickets] = useState<Ticket[]>([
+    { name: 'VIP', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' },
+    { name: 'STANDARD', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' }
+  ])
 
-  const fetchEventRequests = async () => { 
+  const [bannerUrl, setBannerUrl] = useState('')
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+   // Removed fetching event details to avoid viewing them on this page
+
+  const fetchEventDetails = async () => {
     try {
       const token = localStorage.getItem('token')
-      // Staff sees all requests, Organizer sees only their own
-      const endpoint = isStaff 
-        ? 'http://localhost:3000/api/staff/event-requests'
-        : 'http://localhost:3000/api/event-requests/my'
-      
-      const response = await fetch(endpoint, {
+      const response = await fetch(`http://localhost:3000/api/events/detail?id=${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -91,364 +54,398 @@ export default function EventRequests() {
 
       if (response.ok) {
         const data = await response.json()
-        console.log('Event requests data:', data)
+        console.log('Event details:', data)
         
-        // Fetch all events to check banner URL
-        const eventsResponse = await fetch('http://localhost:3000/api/events', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'ngrok-skip-browser-warning': 'true'
-          }
-        })
-        
-        let eventsMap = new Map()
-        if (eventsResponse.ok) {
-          const eventsData = await eventsResponse.json()
-          const allEvents = [
-            ...(eventsData.openEvents || []),
-            ...(eventsData.closedEvents || [])
-          ]
-          // Create map of eventId to bannerUrl
-          allEvents.forEach((event: any) => {
-            eventsMap.set(event.eventId, event.bannerUrl)
-          })
-        }
-        
-        // Function to update request status based on banner URL
-        const updateRequestStatus = (req: EventRequest): EventRequest => {
-          if (req.status === 'APPROVED' && req.createdEventId) {
-            const bannerUrl = eventsMap.get(req.createdEventId)
-            if (!bannerUrl || bannerUrl.trim() === '') {
-              return { ...req, status: 'UPDATING' as EventRequestStatus, bannerUrl: undefined }
-            }
-            return { ...req, bannerUrl }
-          }
-          return req
-        }
-        
-        // Handle new API structure: { pending: [], approved: [], rejected: [] }
-        if (data.pending || data.approved || data.rejected) {
-          const pending = Array.isArray(data.pending) ? data.pending : []
-          let approved = Array.isArray(data.approved) ? data.approved.map(updateRequestStatus) : []
-          const rejected = Array.isArray(data.rejected) ? data.rejected : []
-          
-          // Separate UPDATING from APPROVED
-          const updating = approved.filter((req: EventRequest) => req.status === 'UPDATING')
-          approved = approved.filter((req: EventRequest) => req.status === 'APPROVED')
-          
-          const processed = [...approved, ...rejected, ...updating]
-          
-          setPendingRequests(pending)
-          setProcessedRequests(processed)
-          setRequests([...pending, ...processed])
-        } else if (Array.isArray(data)) {
-          // Handle legacy flat array structure
-          const updatedData = data.map(updateRequestStatus)
-          setRequests(updatedData)
-          setPendingRequests(updatedData.filter(req => req.status === 'PENDING'))
-          setProcessedRequests(updatedData.filter(req => req.status === 'APPROVED' || req.status === 'REJECTED' || req.status === 'UPDATING'))
+        // Pre-fill form if data exists
+        if (data.bannerUrl) {
+          setBannerUrl(data.bannerUrl)
+          setImagePreview(data.bannerUrl)
         }
       } else {
-        throw new Error('Failed to fetch event requests')
+        throw new Error('Failed to fetch event details')
       }
     } catch (error) {
-      console.error('Error fetching event requests:', error)
-      setError(error instanceof Error ? error.message : 'Failed to fetch event requests')
+      console.error('Error fetching event:', error)
+      // Remove specific phrase; show a generic error or actual error message
+      setError(error instanceof Error ? error.message : 'Đã xảy ra lỗi')
     } finally {
       setLoading(false)
     }
   }
+   // Removed: fetchEventDetails function to stop showing event details
 
-  const handleViewDetails = (request: EventRequest) => {
-    setSelectedRequest(request)
-    setIsModalOpen(true)
+  const handleSpeakerChange = (field: keyof typeof speaker, value: string) => {
+    setSpeaker(prev => ({ ...prev, [field]: value }))
   }
 
-  const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setSelectedRequest(null)
+  const handleTicketChange = (index: number, field: keyof Ticket, value: string | number) => {
+    setTickets(prev => {
+      const updated = [...prev]
+      updated[index] = { ...updated[index], [field]: value }
+      return updated
+    })
   }
 
-  const handleEditEvent = () => {
-    if (!selectedRequest) return
-    
-    // For approved events, use createdEventId; otherwise use requestId
-    const eventId = selectedRequest.status === 'APPROVED' && selectedRequest.createdEventId 
-      ? selectedRequest.createdEventId 
-      : selectedRequest.requestId
-    
-    navigate(`/dashboard/events/${eventId}/edit`)
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid file')
+      return
+    }
+
+    setSelectedImage(file)
+    setError(null)
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
   }
 
-  const handleApprove = (request: EventRequest) => {
-    setRequestToProcess(request)
-    setProcessAction('APPROVE')
-    setIsProcessModalOpen(true)
+  const handleRemoveImage = () => {
+    setSelectedImage(null)
+    setImagePreview(null)
+    setBannerUrl('')
+    setError(null)
   }
 
-  const handleReject = (request: EventRequest) => {
-    setRequestToProcess(request)
-    setProcessAction('REJECT')
-    setIsProcessModalOpen(true)
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(true)
   }
 
-  const handleProcessRequest = async (areaId: number, organizerNote: string) => {
-    if (!requestToProcess) return
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+
+    const file = e.dataTransfer.files?.[0]
+    if (!file) return
+
+    const validation = validateImageFile(file)
+    if (!validation.valid) {
+      setError(validation.error || 'Invalid file')
+      return
+    }
+
+    setSelectedImage(file)
+    setError(null)
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    setError(null)
 
     try {
-      const token = localStorage.getItem('token')
-      const payload = {
-        requestId: requestToProcess.requestId,
-        action: processAction,
-        organizerNote: organizerNote,
-        areaId: areaId
+      // Validate all maxQuantity values are multiples of 10
+      for (const ticket of tickets) {
+        if (ticket.maxQuantity % 10 !== 0) {
+          setError(`Số lượng tối đa của vé ${ticket.name} phải là bội số của 10 (10, 20, 30, ...)`)
+          setIsSubmitting(false)
+          return
+        }
       }
-      console.log('Process payload:', payload)
-      
-      const response = await fetch('http://localhost:3000/api/event-requests/process', {
+
+      // Upload image if selected
+      let finalBannerUrl = bannerUrl
+      if (selectedImage) {
+        finalBannerUrl = await uploadEventBanner(selectedImage)
+      }
+
+      const token = localStorage.getItem('token')
+      const requestBody = {
+        eventId: parseInt(id!),
+        speaker: {
+          fullName: speaker.fullName,
+          bio: speaker.bio,
+          email: speaker.email,
+          phone: speaker.phone,
+          avatarUrl: speaker.avatarUrl
+        },
+        tickets: tickets.map(ticket => ({
+          name: ticket.name,
+          description: ticket.description,
+          price: Number(ticket.price),
+          maxQuantity: Number(ticket.maxQuantity),
+          status: 'ACTIVE'
+        })),
+        bannerUrl: finalBannerUrl
+      }
+
+      console.log('Updating event with:', requestBody)
+
+      const response = await fetch(`http://localhost:3000/api/events/update-details`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(requestBody)
       })
 
       if (response.ok) {
-        showToast('success', processAction === 'APPROVE' ? 'Đã duyệt yêu cầu thành công!' : 'Đã từ chối yêu cầu.')
-        fetchEventRequests()
+        showToast('success', 'Cập nhật sự kiện thành công!')
+        navigate('/dashboard/events')
       } else {
         const errorData = await response.text()
-        const errorMessage = errorData || 'Failed to process request'
+        const errorMessage = errorData || 'Failed to update event'
         showToast('error', errorMessage)
         throw new Error(errorMessage)
       }
     } catch (error) {
-      console.error('Error processing request:', error)
-      showToast('error', 'Không thể xử lý yêu cầu. Vui lòng thử lại.')
+      console.error('Error updating event:', error)
+      setError(error instanceof Error ? error.message : 'Không thể cập nhật sự kiện')
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  if (!isStaff && !isOrganizer) {
+  if (loading) {
     return (
-      <div className="text-center py-12">
-        <p className="text-gray-500">
-          Bạn không có quyền truy cập trang này.
-        </p>
-        <Link to="/dashboard" className="text-blue-600 mt-4 inline-block">
-          Quay lại Dashboard
-        </Link>
+      <div className="flex justify-center items-center min-h-screen">
+        <p className="text-gray-500">Đang tải...</p>
       </div>
     )
   }
 
-  // Filter requests based on active tab (only for staff)
-  const filteredRequests = isStaff 
-    ? activeTab === 'pending'
-      ? pendingRequests
-      : processedRequests
-    : requests
-
-  const pendingCount = pendingRequests.length
-  const processedCount = processedRequests.length
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            {isStaff ? 'Quản lý yêu cầu sự kiện' : 'Yêu cầu sự kiện của tôi'}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {isStaff 
-              ? 'Duyệt các yêu cầu tổ chức sự kiện do sinh viên gửi lên.'
-              : 'Theo dõi các yêu cầu tổ chức sự kiện bạn đã gửi cho Ban tổ chức.'
-            }
-          </p>
-        </div>
-        {isOrganizer && (
-          <Link
-            to="/dashboard/event-requests/create"
-            className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700"
-          >
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Gửi yêu cầu mới
-          </Link>
-        )}
-      </div>
+      <Link
+        to="/dashboard/events"
+        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
+      >
+        <ArrowLeft className="w-4 h-4 mr-2" />
+        Quay lại
+      </Link>
 
-      {/* Tabs for Staff */}
-      {isStaff && (
-        <div className="mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('pending')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'pending'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Đang chờ duyệt
-                {pendingCount > 0 && (
-                  <span className="ml-2 py-0.5 px-2 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium">
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('processed')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'processed'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Đã xử lý
-                {processedCount > 0 && (
-                  <span className="ml-2 py-0.5 px-2 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
-                    {processedCount}
-                  </span>
-                )}
-              </button>
-            </nav>
+      <div className="bg-white rounded-lg shadow-md p-8 max-w-4xl">
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+          Cập nhật thông tin sự kiện
+        </h1>
+
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Speaker Information */}
+          <div className="border-b pb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Thông tin diễn giả</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Họ và tên *
+                </label>
+                <input
+                  type="text"
+                  value={speaker.fullName}
+                  onChange={(e) => handleSpeakerChange('fullName', e.target.value)}
+                  required
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tiểu sử *
+                </label>
+                <textarea
+                  value={speaker.bio}
+                  onChange={(e) => handleSpeakerChange('bio', e.target.value)}
+                  required
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={speaker.email}
+                    onChange={(e) => handleSpeakerChange('email', e.target.value)}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Số điện thoại *
+                  </label>
+                  <input
+                    type="tel"
+                    value={speaker.phone}
+                    onChange={(e) => handleSpeakerChange('phone', e.target.value)}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  URL ảnh đại diện (tùy chọn)
+                </label>
+                <input
+                  type="url"
+                  value={speaker.avatarUrl}
+                  onChange={(e) => handleSpeakerChange('avatarUrl', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-      )}
 
-      {loading ? (
-        <div className="bg-white rounded-lg shadow-md p-10 text-center">
-          <p className="text-gray-500">Đang tải...</p>
-        </div>
-      ) : error ? (
-        <div className="bg-white rounded-lg shadow-md p-10 text-center">
-          <p className="text-red-500">{error}</p>
-          <button 
-            onClick={fetchEventRequests}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Thử lại
-          </button>
-        </div>
-      ) : filteredRequests.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-md p-10 text-center">
-          <FileClock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500 text-lg">
-            {isStaff && activeTab === 'pending' 
-              ? 'Không có yêu cầu đang chờ duyệt'
-              : isStaff && activeTab === 'processed'
-              ? 'Chưa có yêu cầu nào được xử lý'
-              : 'Hiện chưa có yêu cầu sự kiện nào'
-            }
-          </p>
-          <p className="text-sm text-gray-400 mt-2">
-            {isStaff && activeTab === 'pending'
-              ? 'Khi có yêu cầu mới, chúng sẽ xuất hiện tại đây.'
-              : isStaff && activeTab === 'processed'
-              ? 'Các yêu cầu đã duyệt hoặc từ chối sẽ hiển thị ở đây.'
-              : 'Khi bạn gửi yêu cầu, dữ liệu sẽ xuất hiện tại đây.'
-            }
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Tiêu đề
-                </th>
-                {isStaff && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Người gửi
-                  </th>
-                )}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ngày gửi
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Trạng thái
-                </th>
-                {isStaff && activeTab === 'pending' && (
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Thao tác
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredRequests.map((req) => (
-                <tr 
-                  key={req.requestId} 
-                  className="hover:bg-gray-50 cursor-pointer"
-                  onClick={() => handleViewDetails(req)}
+          {/* Tickets */}
+          <div className="border-b pb-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Thông tin vé</h2>
+            
+            {tickets.map((ticket, index) => (
+              <div key={ticket.name} className="mb-6 p-4 border border-gray-200 rounded-lg">
+                <h3 className="font-medium text-gray-900 mb-3">
+                  Vé {ticket.name}
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mô tả *
+                    </label>
+                    <textarea
+                      value={ticket.description}
+                      onChange={(e) => handleTicketChange(index, 'description', e.target.value)}
+                      required
+                      rows={2}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Giá (VNĐ) *
+                      </label>
+                      <input
+                        type="number"
+                        value={ticket.price}
+                        onChange={(e) => handleTicketChange(index, 'price', e.target.value)}
+                        required
+                        min="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Số lượng tối đa * (bội số của 10)
+                      </label>
+                      <input
+                        type="number"
+                        value={ticket.maxQuantity}
+                        onChange={(e) => handleTicketChange(index, 'maxQuantity', e.target.value)}
+                        required
+                        min="10"
+                        step="10"
+                        placeholder="10, 20, 30, ..."
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Banner Image */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Banner sự kiện *
+            </label>
+            
+            {!imagePreview ? (
+              <div 
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  isDragging 
+                    ? 'border-blue-500 bg-blue-50' 
+                    : 'border-gray-300 hover:border-blue-400'
+                }`}
+              >
+                <input
+                  type="file"
+                  id="banner-upload"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                />
+                <label htmlFor="banner-upload" className="cursor-pointer">
+                  <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                  <p className="text-gray-600 mb-2">Kéo thả ảnh hoặc click để chọn</p>
+                  <p className="text-sm text-gray-500">PNG, JPG, GIF tối đa 5MB</p>
+                </label>
+              </div>
+            ) : (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={handleRemoveImage}
+                  className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
                 >
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {req.title}
-                  </td>
-                  {isStaff && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {req.requesterName || 'N/A'}
-                    </td>
-                  )}
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {new Date(req.createdAt).toLocaleString('vi-VN')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                    <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusClass(
-                        req.status,
-                      )}`}
-                    >
-                      {getStatusLabel(req.status)}
-                    </span>
-                  </td>
-                  {isStaff && activeTab === 'pending' && (
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                      {req.status === 'PENDING' && (
-                        <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => handleApprove(req)}
-                            className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100"
-                          >
-                            <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Duyệt
-                          </button>
-                          <button
-                            onClick={() => handleReject(req)}
-                            className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium text-red-700 bg-red-50 hover:bg-red-100"
-                          >
-                            <XCircle className="w-3 h-3 mr-1" />
-                            Từ chối
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
 
-      <EventRequestDetailModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        request={selectedRequest}
-        userRole={user?.role}
-        onEdit={handleEditEvent}
-      />
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+          )}
 
-      <ProcessRequestModal
-        isOpen={isProcessModalOpen}
-        onClose={() => setIsProcessModalOpen(false)}
-        onSubmit={handleProcessRequest}
-        action={processAction}
-        request={requestToProcess}
-      />
+          <div className="flex justify-end gap-4 pt-4">
+            <Link
+              to="/dashboard/events"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Hủy
+            </Link>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+            >
+              {isSubmitting ? 'Đang cập nhật...' : 'Cập nhật sự kiện'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   )
 }
-

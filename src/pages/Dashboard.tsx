@@ -128,34 +128,46 @@ export default function Dashboard() {
     setDetailError(null)
   }
 
-  // ===== Phân loại sự kiện theo trạng thái =====
+  // ===== Phân loại sự kiện theo ngày bắt đầu =====
   const today = startOfDay(new Date())
 
-  // Sự kiện đang mở: status = OPEN
+  // Sự kiện hôm nay: start date = today AND status = OPEN
   const openEvents = (Array.isArray(events) ? events : [])
-    .filter((e) => e.status === 'OPEN')
-    .sort((a, b) => {
-      const dateA = new Date(a.startTime)
-      const dateB = new Date(b.startTime)
-      return dateA.getTime() - dateB.getTime() // gần nhất lên trước
+    .filter((e) => {
+      if (e.status !== 'OPEN') return false
+      const eventStartDate = startOfDay(new Date(e.startTime))
+      return isSameDay(eventStartDate, today)
     })
-
-  // Sự kiện sắp mở: status = CLOSED & bannerUrl = null
-  const upcomingEvents = (Array.isArray(events) ? events : [])
-    .filter((e) => e.status === 'CLOSED' && !e.bannerUrl)
     .sort((a, b) => {
       const dateA = new Date(a.startTime)
       const dateB = new Date(b.startTime)
       return dateA.getTime() - dateB.getTime()
     })
 
-  // Sự kiện đã kết thúc: status = CLOSED & bannerUrl != null
-  const closedEvents = (Array.isArray(events) ? events : [])
-    .filter((e) => e.status === 'CLOSED' && !!e.bannerUrl)
+  // Sự kiện sắp diễn ra: start date > today AND status = OPEN
+  const upcomingEvents = (Array.isArray(events) ? events : [])
+    .filter((e) => {
+      if (e.status !== 'OPEN') return false
+      const eventStartDate = startOfDay(new Date(e.startTime))
+      return eventStartDate > today
+    })
     .sort((a, b) => {
       const dateA = new Date(a.startTime)
       const dateB = new Date(b.startTime)
-      return dateB.getTime() - dateA.getTime() // sự kiện mới kết thúc lên trước
+      return dateA.getTime() - dateB.getTime()
+    })
+
+  // Sự kiện đã kết thúc: start date < today AND status = OPEN
+  const closedEvents = (Array.isArray(events) ? events : [])
+    .filter((e) => {
+      if (e.status !== 'OPEN') return false
+      const eventStartDate = startOfDay(new Date(e.startTime))
+      return eventStartDate < today
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.startTime)
+      const dateB = new Date(b.startTime)
+      return dateB.getTime() - dateA.getTime()
     })
 
   // ===== JSX =====
@@ -184,10 +196,7 @@ export default function Dashboard() {
               }`}
             >
               <div className="flex flex-col items-start">
-                <span>Sự kiện đang mở</span>
-                <span className="text-xs text-gray-400">
-                  (Có thể mua vé – đang nhận đăng ký)
-                </span>
+                <span>Sự kiện hôm nay</span>
               </div>
             </button>
 
@@ -201,10 +210,7 @@ export default function Dashboard() {
               }`}
             >
               <div className="flex flex-col items-start">
-                <span>Sự kiện sắp mở</span>
-                <span className="text-xs text-gray-400">
-                  (Chưa bán vé – chờ cập nhật thông tin)
-                </span>
+                <span>Sự kiện sắp diễn ra</span>
               </div>
             </button>
 
@@ -219,9 +225,7 @@ export default function Dashboard() {
             >
               <div className="flex flex-col items-start">
                 <span>Sự kiện đã kết thúc</span>
-                <span className="text-xs text-gray-400">
-                  (Không còn hiệu lực)
-                </span>
+
               </div>
             </button>
           </nav>

@@ -9,6 +9,7 @@ type PaymentState = {
   seatIds?: number[]
   eventTitle?: string
   ticketName?: string
+  ticketBreakdown?: Array<{ name: string; count: number; price: number }>
   seatCodes?: string[]
   rowNo?: string
   pricePerTicket?: number
@@ -86,12 +87,24 @@ export default function Payment() {
                 {state.eventTitle || 'Sự kiện demo (mock)'}
               </span>
             </p>
-            {state.ticketName && (
+            {state.ticketBreakdown && state.ticketBreakdown.length > 0 ? (
+              <p>
+                Loại vé:{' '}
+                <span className="font-medium">
+                  {state.ticketBreakdown.map((t, idx) => (
+                    <span key={idx}>
+                      {t.name} x{t.count}
+                      {idx < state.ticketBreakdown!.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </span>
+              </p>
+            ) : state.ticketName ? (
               <p>
                 Loại vé:{' '}
                 <span className="font-medium">{state.ticketName}</span>
               </p>
-            )}
+            ) : null}
             {(state.rowNo || (state.seatCodes && state.seatCodes.length > 0)) && (
               <p>
                 Vị trí ghế:{' '}

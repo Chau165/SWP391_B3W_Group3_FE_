@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { EventRequestDetailModal } from '../components/events/EventRequestDetailModal'
 import { ProcessRequestModal } from '../components/events/ProcessRequestModal'
 
-type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UPDATING'
+type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UPDATING' | 'EXPIRED'
 
 type EventRequest = {
   requestId: number
@@ -34,7 +34,9 @@ const getStatusLabel = (status: EventRequestStatus) => {
     case 'REJECTED':
       return 'Bị từ chối'
     case 'UPDATING':
-      return 'Đang cập nhật'
+      return 'Chờ Cập Nhật Thông Tin'
+    case 'EXPIRED':
+      return 'Hết hạn'
     default:
       return 'Đang chờ duyệt'
   }
@@ -172,11 +174,16 @@ export default function EventRequests() {
   const handleEditEvent = () => {
     if (!selectedRequest) return
     
-    // For approved events, use createdEventId; otherwise use requestId
-    const eventId = selectedRequest.status === 'APPROVED' && selectedRequest.createdEventId 
-      ? selectedRequest.createdEventId 
-      : selectedRequest.requestId
+    // Only UPDATING status can edit
+    if (selectedRequest.status !== 'UPDATING') return
     
+    // Use createdEventId for updating events
+    const eventId = selectedRequest.createdEventId || selectedRequest.requestId
+    
+    // Close modal before navigating
+    setIsModalOpen(false)
+    
+    // Navigate to edit page
     navigate(`/dashboard/events/${eventId}/edit`)
   }
 

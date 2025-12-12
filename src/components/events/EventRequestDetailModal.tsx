@@ -3,7 +3,7 @@ import { X, Calendar, Users, FileText, User, Clock, Edit } from 'lucide-react'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 
-type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UPDATING'
+type EventRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'UPDATING' | 'EXPIRED'
 
 interface EventRequestDetailModalProps {
   isOpen: boolean
@@ -37,7 +37,9 @@ const getStatusLabel = (status: EventRequestStatus) => {
     case 'REJECTED':
       return 'Bị từ chối'
     case 'UPDATING':
-      return 'Đang cập nhật'
+      return 'Chờ Cập Nhật Thông Tin'
+    case 'EXPIRED':
+      return 'Hết hạn'
     default:
       return 'Đang chờ duyệt'
   }
@@ -219,7 +221,7 @@ export function EventRequestDetailModal({
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-4 border-t">
-            {userRole === 'ORGANIZER' && request.status === 'APPROVED' && request.createdEventId && onEdit && (
+            {userRole === 'ORGANIZER' && request.status === 'UPDATING' && request.createdEventId && onEdit && (
               <button
                 onClick={onEdit}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

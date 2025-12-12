@@ -132,9 +132,8 @@ export function EventDetailModal({
 
   // ========== HANDLE CHỌN LOẠI VÉ ==========
   const handleSelectTicket = (ticket: Ticket) => {
-    // Khi đổi loại vé => reset ghế đã chọn
+    // Giữ nguyên ghế đã chọn khi đổi loại vé
     setSelectedTicket(ticket)
-    setSelectedSeats([])
   }
 
   // ========== HANDLE CHỌN / BỎ CHỌN GHẾ ==========
@@ -144,8 +143,6 @@ export function EventDetailModal({
     // ❌ Không cho chọn ghế đang BOOKED / CHECKED_IN / PENDING
     if (!isSeatAvailableForSelect(seat)) {
       if (seat.status === 'PENDING') {
-        // Optional: báo cho user biết ghế đang giữ chỗ
-        // (nếu không thích alert thì bỏ đoạn này)
         alert(
           `Ghế ${seat.seatCode} đang được giữ chỗ trong quá trình thanh toán. Vui lòng chọn ghế khác.`,
         )
@@ -153,40 +150,19 @@ export function EventDetailModal({
       return
     }
 
-    // Nếu chưa chọn loại vé -> auto map theo seatType
-    let ticket = selectedTicket
-    if (!ticket && event.tickets && event.tickets.length > 0) {
-      const isVIPSeat = seat.seatType === 'VIP'
-      const foundTicket = event.tickets.find((t) => {
-        const isVIPTicket = t.name.toUpperCase().includes('VIP')
-        return isVIPTicket === isVIPSeat
-      })
-
-      if (foundTicket) {
-        ticket = foundTicket
-        setSelectedTicket(foundTicket)
-      } else {
-        // Không có loại vé match -> không cho chọn
-        return
-      }
-    }
-
-    if (!ticket) return
-
-    const isVIPSeat = seat.seatType === 'VIP'
-    const isVIPTicket = ticket.name.toUpperCase().includes('VIP')
-
-    // Chỉ cho chọn ghế cùng loại với ticket
-    if (isVIPSeat !== isVIPTicket) {
-      return
-    }
-
+    // ✅ Cho phép chọn tự do - tự động map ticket theo seat type
     setSelectedSeats((prev) => {
       const exists = prev.some((s) => s.seatId === seat.seatId)
       if (exists) {
         // Bỏ chọn nếu đã được chọn
         return prev.filter((s) => s.seatId !== seat.seatId)
       }
+      
+      // ❌ Giới hạn tối đa 4 ghế - không hiển thị thông báo, chỉ ngăn chọn
+      if (prev.length >= 4) {
+        return prev
+      }
+      
       // Thêm mới
       return [...prev, seat]
     })
@@ -194,23 +170,59 @@ export function EventDetailModal({
 
   // ========== CONFIRM & ĐI TỚI TRANG PAYMENT ==========
   const confirmSeats = () => {
-    if (!event || !selectedTicket || selectedSeats.length === 0) return
+    if (!event || selectedSeats.length === 0) return
+
+    // Tính tổng tiền dựa trên seat type (VIP/STANDARD)
+    let totalAmount = 0
+    const vipTicket = event.tickets?.find((t) => t.name.toUpperCase().includes('VIP'))
+    const standardTicket = event.tickets?.find((t) => !t.name.toUpperCase().includes('VIP'))
+
+    // Đếm số lượng từng loại ghế
+    let vipCount = 0
+    let standardCount = 0
+
+    selectedSeats.forEach((seat) => {
+      if (seat.seatType === 'VIP' && vipTicket) {
+        totalAmount += vipTicket.price
+        vipCount++
+      } else if (seat.seatType === 'STANDARD' && standardTicket) {
+        totalAmount += standardTicket.price
+        standardCount++
+      }
+    })
+
+    // Nếu người dùng đã chọn ticket thủ công, ưu tiên dùng ticket đó
+    const ticketToUse = selectedTicket || 
+      (selectedSeats[0]?.seatType === 'VIP' ? vipTicket : standardTicket)
+
+    if (!ticketToUse) {
+      alert('Không tìm thấy loại vé phù hợp')
+      return
+    }
 
     const seatIds = selectedSeats.map((s) => s.seatId)
     const seatCodes = selectedSeats.map((s) => s.seatCode)
-    const quantity = selectedSeats.length
-    const totalAmount = selectedTicket.price * quantity
+
+    // Tạo ticket breakdown cho hiển thị
+    const ticketBreakdown = []
+    if (vipCount > 0 && vipTicket) {
+      ticketBreakdown.push({ name: vipTicket.name, count: vipCount, price: vipTicket.price })
+    }
+    if (standardCount > 0 && standardTicket) {
+      ticketBreakdown.push({ name: standardTicket.name, count: standardCount, price: standardTicket.price })
+    }
 
     navigate('/dashboard/payment', {
       state: {
         eventId: event.eventId,
-        categoryTicketId: selectedTicket.categoryTicketId,
-        seatIds, // array number => FE Payment sẽ build query seatIds=1,2,3 cho BE
+        categoryTicketId: ticketToUse.categoryTicketId,
+        seatIds,
         eventTitle: event.title,
-        ticketName: selectedTicket.name,
-        seatCodes, // để hiển thị ở màn Payment
-        pricePerTicket: selectedTicket.price,
-        quantity,
+        ticketName: ticketToUse.name,
+        ticketBreakdown, // Thêm thông tin chi tiết về các loại vé
+        seatCodes,
+        pricePerTicket: ticketToUse.price,
+        quantity: selectedSeats.length,
         totalAmount,
       },
     })
@@ -227,11 +239,20 @@ export function EventDetailModal({
 
   if (!isOpen) return null
 
-  // Tính tổng tiền hiển thị ở footer
-  const totalAmount =
-    selectedTicket && selectedSeats.length > 0
-      ? selectedTicket.price * selectedSeats.length
-      : 0
+  // Tính tổng tiền hiển thị ở footer - dựa trên seat type
+  let totalAmount = 0
+  if (event && selectedSeats.length > 0) {
+    const vipTicket = event.tickets?.find((t) => t.name.toUpperCase().includes('VIP'))
+    const standardTicket = event.tickets?.find((t) => !t.name.toUpperCase().includes('VIP'))
+
+    selectedSeats.forEach((seat) => {
+      if (seat.seatType === 'VIP' && vipTicket) {
+        totalAmount += vipTicket.price
+      } else if (seat.seatType === 'STANDARD' && standardTicket) {
+        totalAmount += standardTicket.price
+      }
+    })
+  }
 
   const selectedSeatCodesText =
     selectedSeats.length > 0
@@ -243,7 +264,6 @@ export function EventDetailModal({
       {/* Event Detail Modal */}
       <div
         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-40 p-4"
-        onClick={onClose}
       >
         <div
           className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
@@ -436,12 +456,6 @@ export function EventDetailModal({
                         )
                       })}
                     </div>
-
-                    {/* Legend nhỏ cho PENDING nếu muốn */}
-                    <p className="mt-3 text-xs text-gray-500">
-                      Ghế màu x (PENDING) là ghế đang được giữ chỗ trong quá
-                      trình thanh toán, bạn không thể chọn các ghế này.
-                    </p>
                   </div>
                 )}
 
@@ -455,6 +469,7 @@ export function EventDetailModal({
                       loading={loadingSeats}
                       selectedSeats={selectedSeats}
                       onSeatSelect={(seat) => seat && handleSeatSelect(seat)}
+                      maxReached={selectedSeats.length >= 4}
                     />
                   </div>
                 )}
@@ -462,15 +477,14 @@ export function EventDetailModal({
                 {/* Action Buttons */}
                 <div className="border-t mt-6 pt-6 flex justify-between items-center">
                   <div>
-                    {selectedTicket && selectedSeats.length > 0 && (
+                    {selectedSeats.length > 0 && (
                       <div className="text-left">
                         <p className="text-sm text-gray-600">Tổng tiền</p>
                         <p className="text-2xl font-bold text-blue-600">
                           {totalAmount.toLocaleString('vi-VN')} đ
                         </p>
                         <p className="text-xs text-gray-500 mt-1">
-                          {selectedTicket.name} - Ghế:{' '}
-                          {selectedSeatCodesText || 'Chưa chọn'}
+                          Ghế: {selectedSeatCodesText || 'Chưa chọn'}
                           {' · '}Số lượng: {selectedSeats.length}
                         </p>
                       </div>
@@ -493,7 +507,7 @@ export function EventDetailModal({
                     >
                       Đóng
                     </button>
-                    {selectedTicket && selectedSeats.length > 0 && (
+                    {selectedSeats.length > 0 && (
                       <button
                         onClick={confirmSeats}
                         className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
