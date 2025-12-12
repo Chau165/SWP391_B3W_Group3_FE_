@@ -1,10 +1,10 @@
 export type NotificationItem = {
   id: number
+  userId: number
   title: string
-  content: string
-  linkUrl: string
-  createdAt: number
-  read: boolean
+  message: string
+  createdAt: string
+  read?: boolean
 }
 
 export async function getMyNotifications(token: string | null): Promise<NotificationItem[]> {

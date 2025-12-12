@@ -133,26 +133,11 @@ export function ProcessRequestModal({
     } else {
       const errorText = await response.text()
       console.error('Error response:', errorText)
-      
-      // Parse error message from backend
-      try {
-        const errorData = JSON.parse(errorText)
-        if (errorData.message && errorData.message.includes('hiện tại hoặc tương lai')) {
-          throw new Error('Thời gian sự kiện đã qua. Không thể phê duyệt yêu cầu này.')
-        } else if (errorData.message) {
-          throw new Error(errorData.message)
-        }
-      } catch (e) {
-        if (e instanceof Error && e.message !== 'Failed to fetch available areas') {
-          throw e
-        }
-      }
-      
-      throw new Error('Không thể tải danh sách khu vực. Vui lòng thử lại.')
+      throw new Error('Failed to fetch available areas')
     }
   } catch (error) {
     console.error('Error fetching areas:', error)
-    setError(error instanceof Error ? error.message : 'Không thể tải danh sách khu vực. Vui lòng thử lại.')
+    setError('Không thể tải danh sách khu vực. Vui lòng thử lại.')
   } finally {
     setLoading(false)
   }

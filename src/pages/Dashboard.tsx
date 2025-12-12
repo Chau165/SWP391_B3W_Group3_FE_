@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Calendar } from 'lucide-react'
+import { Calendar, Bell } from 'lucide-react'
 import { format, isSameDay, startOfDay } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import type { EventListItem, EventDetail } from '../types/event'
@@ -24,6 +24,10 @@ export default function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState<EventDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [loadingNoti, setLoadingNoti] = useState(false)
+  const [notiError, setNotiError] = useState<string | null>(null)
+  const [showNotifications, setShowNotifications] = useState(false)
 
   // ===== Lấy danh sách sự kiện =====
   useEffect(() => {
@@ -78,6 +82,35 @@ export default function Dashboard() {
     }
 
     fetchEvents()
+    // Fetch notifications for organizer pages
+    const fetchNoti = async () => {
+      if (!token) return
+      try {
+        setLoadingNoti(true)
+        setNotiError(null)
+        const res = await fetch('/api/notifications/my', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            'ngrok-skip-browser-warning': 'true',
+          },
+          credentials: 'include',
+        })
+        if (!res.ok) {
+          if (res.status === 401) throw new Error('Không có quyền truy cập thông báo')
+          throw new Error(`HTTP ${res.status}`)
+        }
+        const data = await res.json()
+        setNotifications(Array.isArray(data) ? data : [])
+      } catch (err: any) {
+        console.error('Lỗi load notifications:', err)
+        setNotiError(err.message ?? 'Không thể tải thông báo')
+      } finally {
+        setLoadingNoti(false)
+      }
+    }
+    fetchNoti()
   }, [token])
 
   // ===== Open event detail modal and fetch event details =====
@@ -430,6 +463,61 @@ export default function Dashboard() {
         error={detailError}
         token={token}
       />
+
+      {/* Floating Notification Button */}
+      <button
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-orange-500 hover:bg-orange-600 shadow-lg flex items-center justify-center transition-colors"
+        title="Thông báo"
+        onClick={() => {
+          setShowNotifications(true)
+        }}
+      >
+        <Bell className="w-6 h-6 text-white" />
+
+        {/* Badge số lượng thông báo */}
+        {!loadingNoti && notifications.length > 0 && (
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">
+            {notifications.length}
+          </span>
+        )}
+      </button>
+
+      {/* Notifications Modal */}
+      {showNotifications && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black bg-opacity-40" onClick={() => setShowNotifications(false)} />
+          <div className="relative bg-white w-full sm:max-w-md sm:rounded-lg shadow-xl p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Thông báo</h2>
+              <button
+                className="text-gray-500 hover:text-gray-700"
+                onClick={() => setShowNotifications(false)}
+              >
+                Đóng
+              </button>
+            </div>
+            {loadingNoti ? (
+              <p className="text-gray-500">Đang tải thông báo...</p>
+            ) : notiError ? (
+              <p className="text-red-600">Lỗi: {notiError}</p>
+            ) : notifications.length === 0 ? (
+              <p className="text-gray-600">Chưa có thông báo nào.</p>
+            ) : (
+              <ul className="divide-y divide-gray-200">
+                {notifications.map((n, idx) => (
+                  <li key={n.id ?? idx} className="py-3">
+                    <p className="text-sm font-medium text-gray-900">{n.title ?? 'Thông báo'}</p>
+                    <p className="text-sm text-gray-600">{n.message ?? ''}</p>
+                    {n.createdAt && (
+                      <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('vi-VN')}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
