@@ -245,11 +245,7 @@ export default function Dashboard() {
                   <button
                     key={event.eventId}
                     onClick={() => openEventDetail(event.eventId)}
-                    className={`text-left block rounded-lg overflow-hidden hover:shadow-xl transition-all cursor-pointer bg-white ${
-                      isToday 
-                        ? 'border-4 border-red-500 shadow-2xl shadow-red-500/50 transform scale-105' 
-                        : 'border border-gray-200'
-                    }`}
+                    className="text-left block rounded-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer bg-white border border-gray-200"
                   >
                     {/* Banner Image */}
                     {event.bannerUrl ? (
@@ -260,8 +256,8 @@ export default function Dashboard() {
                           className="w-full h-48 object-cover"
                         />
                         {isToday && (
-                          <span className="absolute top-3 right-3 px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg shadow-lg animate-pulse">
-                            🔥 HÔM NAY
+                          <span className="absolute top-3 right-3 px-3 py-1 bg-red-500 text-white text-xs font-bold rounded">
+                            HÔM NAY
                           </span>
                         )}
                       </div>
@@ -269,8 +265,8 @@ export default function Dashboard() {
                       <div className="w-full h-48 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center relative">
                         <Calendar className="w-16 h-16 text-blue-400" />
                         {isToday && (
-                          <span className="absolute top-3 right-3 px-4 py-2 bg-red-600 text-white text-sm font-bold rounded-lg shadow-lg animate-pulse">
-                            🔥 HÔM NAY
+                          <span className="absolute top-3 right-3 px-3 py-1 bg-red-500 text-white text-xs font-bold rounded">
+                            HÔM NAY
                           </span>
                         )}
                       </div>
@@ -279,17 +275,13 @@ export default function Dashboard() {
                     {/* Content */}
                     <div className="p-4">
                       {/* Title */}
-                      <h3 className={`text-lg font-bold mb-2 line-clamp-2 min-h-[56px] ${
-                        isToday ? 'text-red-600' : 'text-gray-900'
-                      }`}>
+                      <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[56px]">
                         {event.title}
                       </h3>
 
                       {/* Date & Time */}
-                      <p className={`text-sm mb-1 font-semibold ${
-                        isToday ? 'text-red-600' : 'text-gray-600'
-                      }`}>
-                        {format(eventDate, 'dd/MM/yyyy • EEEE • h:mm a', { locale: vi })}
+                      <p className="text-sm text-gray-600 mb-1">
+                        {format(eventDate, 'EEEE • h:mm a', { locale: vi })}
                       </p>
 
                       {/* Location */}
@@ -353,8 +345,8 @@ export default function Dashboard() {
                       <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[56px]">
                         {event.title}
                       </h3>
-                      <p className="text-sm text-gray-600 mb-1 font-semibold">
-                        {format(eventDate, 'dd/MM/yyyy • EEEE • h:mm a', { locale: vi })}
+                      <p className="text-sm text-gray-600 mb-1">
+                        {format(eventDate, 'EEEE • h:mm a', { locale: vi })}
                       </p>
                       <p className="text-sm text-gray-600 line-clamp-1">
                         {event.venueLocation || event.location || 'Trực tuyến'}
@@ -405,8 +397,8 @@ export default function Dashboard() {
                       {event.title}
                     </h3>
 
-                    <p className="text-sm text-gray-600 mb-1 font-semibold">
-                      {format(new Date(event.startTime), 'dd/MM/yyyy • EEEE • h:mm a', { locale: vi })}
+                    <p className="text-sm text-gray-600 mb-1">
+                      {format(new Date(event.startTime), 'EEEE • h:mm a', { locale: vi })}
                     </p>
 
                     <p className="text-sm text-gray-600 line-clamp-1">
