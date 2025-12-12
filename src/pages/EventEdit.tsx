@@ -2,7 +2,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, Upload, X, Plus, Trash2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { uploadEventBanner, validateImageFile } from '../utils/imageUpload'
-import { useToast } from '../contexts/ToastContext'
 
 type TicketType = 'VIP' | 'STANDARD'
 
@@ -17,7 +16,6 @@ type Ticket = {
 export default function EventEdit() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { showToast } = useToast()
   
   const [loading, setLoading] = useState(false)
    const [isSubmitting, setIsSubmitting] = useState(false)
@@ -202,13 +200,11 @@ export default function EventEdit() {
       })
 
       if (response.ok) {
-        showToast('success', 'Cập nhật sự kiện thành công!')
+        alert('Cập nhật sự kiện thành công!')
         navigate('/dashboard/events')
       } else {
         const errorData = await response.text()
-        const errorMessage = errorData || 'Failed to update event'
-        showToast('error', errorMessage)
-        throw new Error(errorMessage)
+        throw new Error(errorData || 'Failed to update event')
       }
     } catch (error) {
       console.error('Error updating event:', error)

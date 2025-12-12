@@ -2,11 +2,9 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Send } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useToast } from '../contexts/ToastContext'
 
 export default function EventRequestCreate() {
   const navigate = useNavigate()
-  const { showToast } = useToast()
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -112,7 +110,6 @@ export default function EventRequestCreate() {
       })
 
       if (response.ok) {
-        showToast('success', 'Yêu cầu tổ chức sự kiện đã được gửi thành công!')
         navigate('/dashboard/event-requests')
       } else {
         const errorData = await response.json()
@@ -120,9 +117,7 @@ export default function EventRequestCreate() {
       }
     } catch (error) {
       console.error('Error submitting event request:', error)
-      const errorMessage = error instanceof Error ? error.message : 'Failed to submit event request'
-      setError(errorMessage)
-      showToast('error', errorMessage)
+      setError(error instanceof Error ? error.message : 'Failed to submit event request')
     } finally {
       setIsSubmitting(false)
     }

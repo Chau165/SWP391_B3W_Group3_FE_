@@ -75,7 +75,7 @@ export default function ResetPassword() {
         setStep('otp')
         setOtpCountdown(60)
         setError('')
-        showToast('success', 'Mã OTP đã được gửi đến email của bạn!')
+        alert('Mã OTP đã được gửi đến email của bạn!')
       } else {
         setError(response.data.message || 'Gửi OTP thất bại')
       }
@@ -100,7 +100,7 @@ export default function ResetPassword() {
       if (response.data.status === 'success' || response.status === 200) {
         setOtpCountdown(60)
         setError('')
-        showToast('success', 'Mã OTP mới đã được gửi lại!')
+        alert('Mã OTP mới đã được gửi lại!')
       }
     } catch (err: any) {
       console.error('Resend OTP Error:', err)
@@ -159,7 +159,7 @@ export default function ResetPassword() {
       console.log('Response status:', response.status)
 
       if (response.data.status === 'success' || response.status === 200) {
-        showToast('success', 'Đặt lại mật khẩu thành công! Vui lòng đăng nhập.')
+        alert('Đặt lại mật khẩu thành công! Vui lòng đăng nhập.')
         navigate('/login')
       } else {
         setError(response.data.message || 'Đặt lại mật khẩu thất bại')
