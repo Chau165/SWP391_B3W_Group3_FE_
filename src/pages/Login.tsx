@@ -24,7 +24,7 @@ interface FormData {
 // 3. Thêm domain: localhost và domain production
 // 4. Copy Site Key và dán vào đây
 //const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' // Test key - THAY BẰNG SITE KEY THẬT
-const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' 
+const RECAPTCHA_SITE_KEY = '6LcRNiUsAAAAAOTRRAnoQAHXQNfIFx5v49ZAbnsK' 
 const USE_REAL_RECAPTCHA = false // Đổi thành false để dùng TEST_BYPASS khi debug nhanh
 
 export default function Login() {
@@ -36,7 +36,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
   const recaptchaRef = useRef<ReCAPTCHA | null>(null)
-  const { setUser, setToken } = useAuth()
+  const { setUser } = useAuth()
   const navigate = useNavigate()
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,9 +69,12 @@ export default function Login() {
         console.log('User:', user)
         console.log('Token (first 40 chars):', token ? token.slice(0, 40) : null)
 
-        // Update user and token in AuthContext (which auto-saves to localStorage)
+        // Save token and user to localStorage
+        localStorage.setItem('token', token)
+        localStorage.setItem('user', JSON.stringify(user))
+
+        // Update user in AuthContext with data from API
         setUser(user)
-        setToken(token)
 
         // Reset captcha on success (optional)
         try {

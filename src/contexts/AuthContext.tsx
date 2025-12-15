@@ -14,9 +14,7 @@ export interface User {
 
 interface AuthContextType {
   user: User | null
-  token: string | null
   setUser: (user: User | null) => void
-  setToken: (token: string | null) => void
   login: (email: string, password: string, role: UserRole) => void
   logout: () => void
 }
@@ -29,10 +27,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return saved ? JSON.parse(saved) : null
   })
 
-  const [token, setToken] = useState<string | null>(() => {
-    return localStorage.getItem('token')
-  })
-
   useEffect(() => {
     if (user) {
       localStorage.setItem('user', JSON.stringify(user))
@@ -41,14 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user])
 
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem('token', token)
-    } else {
-      localStorage.removeItem('token')
-    }
-  }, [token])
-
   const login = (email: string, password: string, role: UserRole) => {
     // This function is kept for compatibility but is not used
     // The actual login is done via setUser in Login.tsx
@@ -56,11 +42,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     setUser(null)
-    setToken(null)
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, setUser, setToken, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

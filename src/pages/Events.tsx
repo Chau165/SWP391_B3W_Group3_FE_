@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { Calendar, MapPin, Users, Edit, Trash2, List, CalendarDays, Clock } from 'lucide-react'
-import { format, startOfDay, isAfter } from 'date-fns'
+import { Calendar, MapPin, Users, Edit, Trash2, List, CalendarDays } from 'lucide-react'
+import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { useState, useEffect } from 'react'
 import { EventCalendar } from '../components/events/EventCalendar'
@@ -89,18 +89,6 @@ export default function Events() {
     setSelectedEvent(null)
   }
 
-  // ===== Separate upcoming and past events =====
-  const now = new Date()
-  const todayStart = startOfDay(now)
-
-  const upcomingEvents = events
-    .filter(e => isAfter(new Date(e.startTime), todayStart))
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
-
-  const pastEvents = events
-    .filter(e => !isAfter(new Date(e.startTime), todayStart))
-    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()) // Descending (most recent first)
-
   return (
     <div>
       <div className="flex justify-between items-start mb-6">
@@ -168,175 +156,82 @@ export default function Events() {
 
           {/* List View */}
           {viewMode === 'list' && (
-            <div className="space-y-12">
-              {/* Upcoming Events */}
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Sự kiện sắp tới</h2>
-                {upcomingEvents.length === 0 ? (
-                  <div className="bg-white rounded-lg shadow-md p-12 text-center">
-                    <p className="text-gray-500">Không có sự kiện sắp tới</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {upcomingEvents.map((event) => (
-                      <div key={event.eventId} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                        {event.bannerUrl && (
-                          <img
-                            src={event.bannerUrl}
-                            alt={event.title}
-                            className="w-full h-48 object-cover"
-                          />
-                        )}
-                        <div className="p-6">
-                          <div className="flex items-start justify-between mb-2">
-                            <h3 className="text-xl font-semibold text-gray-900 flex-1">
-                              {event.title}
-                            </h3>
-                            {isOrganizer && (
-                              <div className="flex space-x-2 ml-2">
-                                <Link
-                                  to={`/dashboard/events/${event.eventId}/edit`}
-                                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                                  title="Chỉnh sửa"
-                                >
-                                  <Edit size={18} />
-                                </Link>
-                                <button
-                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                  title="Xóa"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
-
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                            {event.description}
-                          </p>
-
-                          <div className="space-y-2 mb-4">
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Calendar className="w-4 h-4 mr-2" />
-                              {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', { locale: vi })}
-                            </div>
-                            <div className="flex items-center text-sm text-gray-600">
-                              <MapPin className="w-4 h-4 mr-2" />
-                              {event.venueLocation || event.location || 'Chưa xác định'}
-                            </div>
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Users className="w-4 h-4 mr-2" />
-                              {event.maxSeats} chỗ
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between mb-4">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                event.status === 'OPEN'
-                                  ? 'bg-green-100 text-green-800'
-                                  : event.status === 'CLOSED'
-                                  ? 'bg-red-100 text-red-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}
-                            >
-                              {event.status === 'OPEN' ? 'Đang mở' : event.status === 'CLOSED' ? 'Đã đóng' : event.status}
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={() => handleEventClick(event)}
-                            className="w-full text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                          >
-                            Xem chi tiết
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{events.map((event) => (
+          <div key={event.eventId} className="bg-white rounded-lg shadow-md overflow-hidden">
+            {event.bannerUrl && (
+              <img
+                src={event.bannerUrl}
+                alt={event.title}
+                className="w-full h-48 object-cover"
+              />
+            )}
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-2">
+                <h3 className="text-xl font-semibold text-gray-900 flex-1">
+                  {event.title}
+                </h3>
+                {isOrganizer && (
+                  <div className="flex space-x-2 ml-2">
+                    <Link
+                      to={`/dashboard/events/${event.eventId}/edit`}
+                      className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                      title="Chỉnh sửa"
+                    >
+                      <Edit size={18} />
+                    </Link>
+                    <button
+                      className="p-1 text-red-600 hover:bg-red-50 rounded"
+                      title="Xóa"
+                    >
+                      <Trash2 size={18} />
+                    </button>
                   </div>
                 )}
               </div>
 
-              {/* Past Events */}
-              {pastEvents.length > 0 && (
-                <div>
-                  <h2 className="text-2xl font-bold text-gray-500 mb-6 flex items-center">
-                    <Clock className="w-6 h-6 mr-2" />
-                    Sự kiện đã qua
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {pastEvents.map((event) => (
-                      <div key={event.eventId} className="bg-gray-50 rounded-lg shadow-sm overflow-hidden opacity-75 hover:opacity-90 transition-opacity">
-                        {event.bannerUrl && (
-                          <img
-                            src={event.bannerUrl}
-                            alt={event.title}
-                            className="w-full h-48 object-cover"
-                          />
-                        )}
-                        <div className="p-6">
-                          <div className="flex items-start justify-between mb-2">
-                            <h3 className="text-xl font-semibold text-gray-600 flex-1">
-                              {event.title}
-                            </h3>
-                            {isOrganizer && (
-                              <div className="flex space-x-2 ml-2">
-                                <Link
-                                  to={`/dashboard/events/${event.eventId}/edit`}
-                                  className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                                  title="Chỉnh sửa"
-                                >
-                                  <Edit size={18} />
-                                </Link>
-                                <button
-                                  className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                                  title="Xóa"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            )}
-                          </div>
+              <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                {event.description}
+              </p>
 
-                          <p className="text-gray-500 text-sm mb-4 line-clamp-2">
-                            {event.description}
-                          </p>
-
-                          <div className="space-y-2 mb-4">
-                            <div className="flex items-center text-sm text-gray-500">
-                              <Calendar className="w-4 h-4 mr-2" />
-                              {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', { locale: vi })}
-                            </div>
-                            <div className="flex items-center text-sm text-gray-500">
-                              <MapPin className="w-4 h-4 mr-2" />
-                              {event.venueLocation || event.location || 'Chưa xác định'}
-                            </div>
-                            <div className="flex items-center text-sm text-gray-500">
-                              <Users className="w-4 h-4 mr-2" />
-                              {event.maxSeats} chỗ
-                            </div>
-                          </div>
-
-                          <div className="flex items-center justify-between mb-4">
-                            <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
-                              Đã kết thúc
-                            </span>
-                          </div>
-
-                          <button
-                            onClick={() => handleEventClick(event)}
-                            className="w-full text-center bg-gray-400 text-white py-2 rounded-lg opacity-50 cursor-not-allowed"
-                            disabled
-                          >
-                            Xem chi tiết
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="space-y-2 mb-4">
+                <div className="flex items-center text-sm text-gray-600">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', { locale: vi })}
                 </div>
-              )}
+                <div className="flex items-center text-sm text-gray-600">
+                  <MapPin className="w-4 h-4 mr-2" />
+                  {event.venueLocation || event.location || 'Chưa xác định'}
+                </div>
+                <div className="flex items-center text-sm text-gray-600">
+                  <Users className="w-4 h-4 mr-2" />
+                  {event.maxSeats} chỗ
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mb-4">
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    event.status === 'OPEN'
+                      ? 'bg-green-100 text-green-800'
+                      : event.status === 'CLOSED'
+                      ? 'bg-red-100 text-red-800'
+                      : 'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {event.status === 'OPEN' ? 'Đang mở' : event.status === 'CLOSED' ? 'Đã đóng' : event.status}
+                </span>
+              </div>
+
+              <button
+                onClick={() => handleEventClick(event)}
+                className="w-full text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Xem chi tiết
+              </button>
             </div>
+          </div>
+          ))}
+        </div>
           )}
         </>
       )}

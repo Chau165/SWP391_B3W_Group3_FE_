@@ -23,8 +23,6 @@ export interface EventDetail extends EventListItem {
   venueName?: string
   location?: string
   speakerName?: string
-  speakerBio?: string
-  speakerAvatarUrl?: string
   currentParticipants?: number
   eventType?: string
 
@@ -36,9 +34,7 @@ export interface EventDetail extends EventListItem {
 
   tickets?: {
     categoryTicketId: number
-    eventId?: number
     name: string
-    description?: string | null
     price: number
     maxQuantity: number
     status: string

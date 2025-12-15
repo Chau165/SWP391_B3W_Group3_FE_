@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Calendar } from 'lucide-react'
-import { format, isSameDay, startOfDay, startOfWeek, endOfWeek } from 'date-fns'
+import { format, isSameDay, startOfDay } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import type { EventListItem, EventDetail } from '../types/event'
 import { EventDetailModal } from '../components/events/EventDetailModal'
@@ -15,6 +15,9 @@ export default function Dashboard() {
   const [events, setEvents] = useState<EventListItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // 3 tab: đang mở / sắp mở / đã kết thúc
+  const [activeTab, setActiveTab] = useState<'open' | 'upcoming' | 'closed'>('open')
 
   // Event detail modal state
   const [isDetailOpen, setIsDetailOpen] = useState(false)
@@ -125,68 +128,116 @@ export default function Dashboard() {
     setDetailError(null)
   }
 
-  // ===== Phân loại sự kiện theo ngày bắt đầu (SINGLE PASS) =====
+  // ===== Phân loại sự kiện theo ngày bắt đầu =====
   const today = startOfDay(new Date())
-  const thisWeekMonday = startOfWeek(today, { weekStartsOn: 1 })
-  const thisWeekSunday = endOfWeek(today, { weekStartsOn: 1 })
 
-  const categorizeEvents = (eventsList: EventListItem[]) => {
-    const categorized = {
-      today: [] as EventListItem[],
-      thisWeek: [] as EventListItem[],
-      upcoming: [] as EventListItem[],
-    }
-
-    // Single pass through all events
-    eventsList.forEach((event) => {
-      if (event.status !== 'OPEN') return
-
-      const eventDate = startOfDay(new Date(event.startTime))
-
-      // Only show events that are today or in the future
-      if (eventDate < today) return
-
-      if (isSameDay(eventDate, today)) {
-        categorized.today.push(event)
-      } else if (eventDate >= today && eventDate <= thisWeekSunday) {
-        categorized.thisWeek.push(event)
-      } else if (eventDate > thisWeekSunday) {
-        categorized.upcoming.push(event)
-      }
+  // Sự kiện hôm nay: start date = today AND status = OPEN
+  const openEvents = (Array.isArray(events) ? events : [])
+    .filter((e) => {
+      if (e.status !== 'OPEN') return false
+      const eventStartDate = startOfDay(new Date(e.startTime))
+      return isSameDay(eventStartDate, today)
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.startTime)
+      const dateB = new Date(b.startTime)
+      return dateA.getTime() - dateB.getTime()
     })
 
-    // Sort each category once
-    Object.values(categorized).forEach((arr) =>
-      arr.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()),
-    )
+  // Sự kiện sắp diễn ra: start date > today AND status = OPEN
+  const upcomingEvents = (Array.isArray(events) ? events : [])
+    .filter((e) => {
+      if (e.status !== 'OPEN') return false
+      const eventStartDate = startOfDay(new Date(e.startTime))
+      return eventStartDate > today
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.startTime)
+      const dateB = new Date(b.startTime)
+      return dateA.getTime() - dateB.getTime()
+    })
 
-    return categorized
-  }
-
-  const { today: openEvents, thisWeek: thisWeekEvents, upcoming: upcomingEventsFiltered } = categorizeEvents(
-    Array.isArray(events) ? events : [],
-  )
+  // Sự kiện đã kết thúc: start date < today AND status = OPEN
+  const closedEvents = (Array.isArray(events) ? events : [])
+    .filter((e) => {
+      if (e.status !== 'OPEN') return false
+      const eventStartDate = startOfDay(new Date(e.startTime))
+      return eventStartDate < today
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.startTime)
+      const dateB = new Date(b.startTime)
+      return dateB.getTime() - dateA.getTime()
+    })
 
   // ===== JSX =====
   return (
     <div>
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900">
-          Sự kiện sắp tới
+          Sự kiện tại Thành phố Hồ Chí Minh
         </h1>
       </div>
 
       {loading && <p className="text-gray-500 mb-4">Đang tải dữ liệu sự kiện...</p>}
       {error && <p className="text-red-500 mb-4">Lỗi: {error}</p>}
 
-      {/* Sự kiện hôm nay */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-           Sự kiện hôm nay ({format(today, 'dd/MM', { locale: vi })})
-        </h2>
-        {openEvents.length === 0 ? (
+      {/* Tab Panel */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            {/* Tab 1: Sự kiện đang mở */}
+            <button
+              onClick={() => setActiveTab('open')}
+              className={`py-4 px-1 border-b-2 font-medium text-base transition-colors ${
+                activeTab === 'open'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex flex-col items-start">
+                <span>Sự kiện hôm nay</span>
+              </div>
+            </button>
+
+            {/* Tab 2: Sự kiện sắp mở */}
+            <button
+              onClick={() => setActiveTab('upcoming')}
+              className={`py-4 px-1 border-b-2 font-medium text-base transition-colors ${
+                activeTab === 'upcoming'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex flex-col items-start">
+                <span>Sự kiện sắp diễn ra</span>
+              </div>
+            </button>
+
+            {/* Tab 3: Sự kiện đã kết thúc */}
+            <button
+              onClick={() => setActiveTab('closed')}
+              className={`py-4 px-1 border-b-2 font-medium text-base transition-colors ${
+                activeTab === 'closed'
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex flex-col items-start">
+                <span>Sự kiện đã kết thúc</span>
+
+              </div>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Events Grid */}
+      {activeTab === 'open' && (
+        <>
+          {openEvents.length === 0 ? (
             <div className="bg-white rounded-lg shadow p-12 text-center">
-              <p className="text-gray-500 text-lg">Hôm nay không có sự kiện nào</p>
+              <p className="text-gray-500 text-lg">Hiện chưa có sự kiện đang mở</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -254,23 +305,21 @@ export default function Dashboard() {
                 )
               })}
             </div>
-          )
-        }
-      </div>
+          )}
+        </>
+      )}
 
-      {/* Sự kiện tuần này */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-           Sự kiện tuần này ({format(thisWeekMonday, 'dd/MM', { locale: vi })} - {format(thisWeekSunday, 'dd/MM', { locale: vi })})
-        </h2>
-        {thisWeekEvents.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <p className="text-gray-500 text-lg">Tuần này không có sự kiện sắp tới nào</p>
-          </div>
-        ) : (
+      {activeTab === 'upcoming' && (
+        <>
+          {upcomingEvents.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-12 text-center">
+              <p className="text-gray-500 text-lg">Hiện chưa có sự kiện sắp mở</p>
+            </div>
+          ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {thisWeekEvents.map((event) => {
+              {upcomingEvents.map((event) => {
                 const eventDate = new Date(event.startTime)
+                const isToday = isSameDay(eventDate, today)
 
                 return (
                   <button
@@ -280,14 +329,26 @@ export default function Dashboard() {
                   >
                     {/* Banner Image */}
                     {event.bannerUrl ? (
-                      <img
-                        src={event.bannerUrl}
-                        alt={event.title}
-                        className="w-full h-48 object-cover"
-                      />
+                      <div className="relative">
+                        <img
+                          src={event.bannerUrl}
+                          alt={event.title}
+                          className="w-full h-48 object-cover"
+                        />
+                        {isToday && (
+                          <span className="absolute top-3 right-3 px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded">
+                            SẮP MỞ
+                          </span>
+                        )}
+                      </div>
                     ) : (
-                      <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center">
-                        <Calendar className="w-16 h-16 text-blue-400" />
+                      <div className="w-full h-48 bg-gradient-to-br from-yellow-50 to-yellow-100 flex items-center justify-center relative">
+                        <Calendar className="w-16 h-16 text-yellow-400" />
+                        {isToday && (
+                          <span className="absolute top-3 right-3 px-3 py-1 bg-orange-500 text-white text-xs font-bold rounded">
+                            SẮP MỞ
+                          </span>
+                        )}
                       </div>
                     )}
 
@@ -307,66 +368,65 @@ export default function Dashboard() {
                 )
               })}
             </div>
-          )
-        }
-      </div>
+          )}
+        </>
+      )}
 
-      {/* Sự kiện sắp diễn ra */}
-      <div className="mb-12">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-           Đăng ký sớm cho sự kiện sắp tới
-        </h2>
-        {upcomingEventsFiltered.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-12 text-center">
-            <p className="text-gray-500 text-lg">Hiện chưa có sự kiện đã lên lịch</p>
-          </div>
-        ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {upcomingEventsFiltered.map((event) => {
-                const eventDate = new Date(event.startTime)
-
-                return (
-                  <button
-                    key={event.eventId}
-                    onClick={() => openEventDetail(event.eventId)}
-                    className="text-left block rounded-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer bg-white border border-gray-200"
-                  >
-                    {/* Banner Image */}
-                    {event.bannerUrl ? (
-                      <img
-                        src={event.bannerUrl}
-                        alt={event.title}
-                        className="w-full h-48 object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-48 bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center">
-                        <Calendar className="w-16 h-16 text-purple-400" />
-                      </div>
-                    )}
-
-                    {/* Content */}
-                    <div className="p-4">
-                      <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[56px]">
-                        {event.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-1 font-semibold">
-                        {format(eventDate, 'dd/MM/yyyy • EEEE • h:mm a', { locale: vi })}
-                      </p>
-                      <p className="text-sm text-gray-600 line-clamp-1">
-                        {event.venueLocation || event.location || 'Trực tuyến'}
-                      </p>
-                    </div>
-                  </button>
-                )
-              })}
+      {activeTab === 'closed' && (
+        <>
+          {closedEvents.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-12 text-center">
+              <p className="text-gray-500 text-lg">Chưa có sự kiện đã kết thúc</p>
             </div>
-          )
-        }
-      </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {closedEvents.map((event) => (
+                <button
+                  key={event.eventId}
+                  onClick={() => openEventDetail(event.eventId)}
+                  className="text-left block rounded-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer bg-white border border-gray-200 opacity-75"
+                >
+                  {/* Banner Image */}
+                  {event.bannerUrl ? (
+                    <img
+                      src={event.bannerUrl}
+                      alt={event.title}
+                      className="w-full h-48 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                      <Calendar className="w-16 h-16 text-gray-400" />
+                    </div>
+                  )}
+
+                  {/* Content */}
+                  <div className="p-4">
+                    <span className="inline-block px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded mb-3">
+                      Đã kết thúc
+                    </span>
+
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2 min-h-[56px]">
+                      {event.title}
+                    </h3>
+
+                    <p className="text-sm text-gray-600 mb-1 font-semibold">
+                      {format(new Date(event.startTime), 'dd/MM/yyyy • EEEE • h:mm a', { locale: vi })}
+                    </p>
+
+                    <p className="text-sm text-gray-600 line-clamp-1">
+                      {event.venueLocation || event.location || 'Trực tuyến'}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       <div className="mt-8 text-center">
         <Link
-          to="/dashboard/events"
+          to="/events"
           className="inline-block text-orange-600 hover:text-orange-700 font-medium"
         >
           Xem tất cả sự kiện →
