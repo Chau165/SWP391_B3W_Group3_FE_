@@ -426,7 +426,7 @@ export default function Dashboard() {
 
       <div className="mt-8 text-center">
         <Link
-          to="/events"
+          to="/dashboard/events"
           className="inline-block text-orange-600 hover:text-orange-700 font-medium"
         >
           Xem tất cả sự kiện →
