@@ -138,17 +138,33 @@ export default function EventRequests() {
           const updating = approved.filter((req: EventRequest) => req.status === 'UPDATING')
           approved = approved.filter((req: EventRequest) => req.status === 'APPROVED')
           
-          const processed = [...approved, ...rejected, ...updating]
+          // Different categorization for Staff vs Organizer
+          if (isStaff) {
+            // Staff: pending tab has PENDING, processed tab has APPROVED + REJECTED + UPDATING
+            const processed = [...approved, ...rejected, ...updating]
+            setPendingRequests(pending)
+            setProcessedRequests(processed)
+          } else {
+            // Organizer: "Need action" tab has PENDING + UPDATING, "Processed" tab has APPROVED + REJECTED
+            const needAction = [...pending, ...updating]
+            const processed = [...approved, ...rejected]
+            setPendingRequests(needAction)
+            setProcessedRequests(processed)
+          }
           
-          setPendingRequests(pending)
-          setProcessedRequests(processed)
-          setRequests([...pending, ...processed])
+          setRequests([...pending, ...approved, ...rejected, ...updating])
         } else if (Array.isArray(data)) {
           // Handle legacy flat array structure
           const updatedData = data.map(updateRequestStatus)
           setRequests(updatedData)
-          setPendingRequests(updatedData.filter(req => req.status === 'PENDING'))
-          setProcessedRequests(updatedData.filter(req => req.status === 'APPROVED' || req.status === 'REJECTED' || req.status === 'UPDATING'))
+          
+          if (isStaff) {
+            setPendingRequests(updatedData.filter(req => req.status === 'PENDING'))
+            setProcessedRequests(updatedData.filter(req => req.status === 'APPROVED' || req.status === 'REJECTED' || req.status === 'UPDATING'))
+          } else {
+            setPendingRequests(updatedData.filter(req => req.status === 'PENDING' || req.status === 'UPDATING'))
+            setProcessedRequests(updatedData.filter(req => req.status === 'APPROVED' || req.status === 'REJECTED'))
+          }
         }
       } else {
         throw new Error('Failed to fetch event requests')
@@ -249,12 +265,10 @@ export default function EventRequests() {
     )
   }
 
-  // Filter requests based on active tab (only for staff)
-  const filteredRequests = isStaff 
-    ? activeTab === 'pending'
-      ? pendingRequests
-      : processedRequests
-    : requests
+  // Filter requests based on active tab
+  const filteredRequests = activeTab === 'pending'
+    ? pendingRequests
+    : processedRequests
 
   const pendingCount = pendingRequests.length
   const processedCount = processedRequests.length
@@ -284,45 +298,43 @@ export default function EventRequests() {
         )}
       </div>
 
-      {/* Tabs for Staff */}
-      {isStaff && (
-        <div className="mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <button
-                onClick={() => setActiveTab('pending')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'pending'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Đang chờ duyệt
-                {pendingCount > 0 && (
-                  <span className="ml-2 py-0.5 px-2 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium">
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('processed')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === 'processed'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Đã xử lý
-                {processedCount > 0 && (
-                  <span className="ml-2 py-0.5 px-2 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
-                    {processedCount}
-                  </span>
-                )}
-              </button>
-            </nav>
-          </div>
+      {/* Tabs for both Staff and Organizer */}
+      <div className="mb-6">
+        <div className="border-b border-gray-200">
+          <nav className="-mb-px flex space-x-8">
+            <button
+              onClick={() => setActiveTab('pending')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'pending'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {isStaff ? 'Đang chờ duyệt' : 'Cần thao tác'}
+              {pendingCount > 0 && (
+                <span className="ml-2 py-0.5 px-2 rounded-full bg-yellow-100 text-yellow-800 text-xs font-medium">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('processed')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'processed'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Đã xử lý
+              {processedCount > 0 && (
+                <span className="ml-2 py-0.5 px-2 rounded-full bg-gray-100 text-gray-800 text-xs font-medium">
+                  {processedCount}
+                </span>
+              )}
+            </button>
+          </nav>
         </div>
-      )}
+      </div>
 
       {loading ? (
         <div className="bg-white rounded-lg shadow-md p-10 text-center">
@@ -342,19 +354,15 @@ export default function EventRequests() {
         <div className="bg-white rounded-lg shadow-md p-10 text-center">
           <FileClock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">
-            {isStaff && activeTab === 'pending' 
-              ? 'Không có yêu cầu đang chờ duyệt'
-              : isStaff && activeTab === 'processed'
-              ? 'Chưa có yêu cầu nào được xử lý'
-              : 'Hiện chưa có yêu cầu sự kiện nào'
+            {activeTab === 'pending' 
+              ? (isStaff ? 'Không có yêu cầu đang chờ duyệt' : 'Không có yêu cầu cần thao tác')
+              : 'Chưa có yêu cầu nào được xử lý'
             }
           </p>
           <p className="text-sm text-gray-400 mt-2">
-            {isStaff && activeTab === 'pending'
-              ? 'Khi có yêu cầu mới, chúng sẽ xuất hiện tại đây.'
-              : isStaff && activeTab === 'processed'
-              ? 'Các yêu cầu đã duyệt hoặc từ chối sẽ hiển thị ở đây.'
-              : 'Khi bạn gửi yêu cầu, dữ liệu sẽ xuất hiện tại đây.'
+            {activeTab === 'pending'
+              ? (isStaff ? 'Khi có yêu cầu mới, chúng sẽ xuất hiện tại đây.' : 'Các yêu cầu đang chờ duyệt hoặc cần cập nhật sẽ hiển thị ở đây.')
+              : 'Các yêu cầu đã duyệt hoặc từ chối sẽ hiển thị ở đây.'
             }
           </p>
         </div>

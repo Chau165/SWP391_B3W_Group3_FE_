@@ -129,16 +129,18 @@ export default function EventRequestCreate() {
   }
 
   return (
-    <div>
-      <Link
-        to="/dashboard/my-event-requests"
-        className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Quay lại
-      </Link>
+    <div className="flex flex-col items-center">
+      <div className="w-full max-w-3xl">
+        <Link
+          to="/dashboard/my-event-requests"
+          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Quay lại
+        </Link>
+      </div>
 
-      <div className="bg-white rounded-lg shadow-md p-8 max-w-3xl">
+      <div className="bg-white rounded-lg shadow-md p-8 max-w-3xl w-full">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">
           Gửi yêu cầu tổ chức sự kiện
         </h1>

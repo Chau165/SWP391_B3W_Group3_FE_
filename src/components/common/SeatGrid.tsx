@@ -111,7 +111,7 @@ export function SeatGrid({ seats, loading = false, selectedSeats = [], onSeatSel
       )}
 
       {/* Seat Grid */}
-      <div className="space-y-3">
+      <div className="space-y-3 flex flex-col items-center">
         {sortedRows.map((row, rowIndex) => {
           const seatGrid = createSeatGrid(seatsByRow[row], maxColumns)
           const isVipRow = vipRows.includes(row)
@@ -121,18 +121,20 @@ export function SeatGrid({ seats, loading = false, selectedSeats = [], onSeatSel
           return (
             <div 
               key={row} 
-              className={`flex items-center space-x-2 ${
-                isVipRow 
-                  ? `${isFirstVipRow ? 'pt-3' : ''} ${isLastVipRow ? 'pb-3' : ''} pl-2 pr-2 border-l-4 border-r-4 border-red-500 ${
-                      isFirstVipRow ? 'border-t-4 rounded-t-lg' : ''
-                    } ${
-                      isLastVipRow ? 'border-b-4 rounded-b-lg' : ''
-                    } bg-red-50/30`
-                  : ''
-              }`}
+              className="flex items-center space-x-2"
             >
               <div className="w-8 text-center font-semibold text-gray-700 text-sm">{row}</div>
-              <div className="flex-1 flex gap-2">
+              <div 
+                className={`inline-flex gap-2 ${
+                  isVipRow 
+                    ? `${isFirstVipRow ? 'pt-3' : ''} ${isLastVipRow ? 'pb-3' : ''} px-3 border-l-4 border-r-4 border-red-500 ${
+                        isFirstVipRow ? 'border-t-4 rounded-t-lg' : ''
+                      } ${
+                        isLastVipRow ? 'border-b-4 rounded-b-lg' : ''
+                      } bg-red-50/30`
+                    : ''
+                }`}
+              >
                 {seatGrid.map((seat, index) => (
                   seat ? (
                     <button

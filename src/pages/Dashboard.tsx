@@ -196,7 +196,7 @@ export default function Dashboard() {
               }`}
             >
               <div className="flex flex-col items-start">
-                <span>Sự kiện hôm nay</span>
+                <span>Sự kiện hôm nay ({format(today, 'dd/MM')})</span>
               </div>
             </button>
 
