@@ -230,16 +230,15 @@ export default function GuestLanding() {
           
           <h1 className="text-5xl font-extrabold leading-tight sm:text-6xl lg:text-7xl">
             <span className="bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 bg-clip-text text-transparent">
-              Trải nghiệm tổ chức
+              Tổ chức 
             </span>
             <br />
-            <span className="text-gray-900">sự kiện thông minh</span>
+            <span className="text-gray-900"> Sự kiện FPT Education</span>
           </h1>
           
           <p className="mx-auto max-w-3xl text-lg text-gray-600 sm:text-xl leading-relaxed">
             Dành cho Ban tổ chức, Bộ phận truyền thông và Câu lạc bộ trong hệ
-            thống FPT Education. Tất cả công việc được gom gọn trong một bảng
-            điều khiển duy nhất.
+            thống FPT Education. Dễ dàng tham gia quản lý và tổ chức các sự kiện. 
           </p>
 
           <div className="flex flex-wrap justify-center gap-5 pt-4">

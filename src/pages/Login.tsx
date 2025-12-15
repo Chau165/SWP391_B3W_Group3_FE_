@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import axios from 'axios'
 import ReCAPTCHA from 'react-google-recaptcha'
 import fptLogo from '../assets/fpt-logo.png'
-import fptCampus from '../assets/dai-hoc-fpt-tp-hcm-1.jpeg'
+import loginImg from '../assets/login.jpg'
 
 // Use proxy to avoid CORS issues in development
 const API_URL = '/api'
@@ -146,9 +146,9 @@ export default function Login() {
 
   return (
     <div 
-      className="min-h-screen flex items-center justify-center px-4 relative"
+      className="min-h-screen flex items-center justify-center px-4 relative "
       style={{
-        backgroundImage: `url(${fptCampus})`,
+        backgroundImage: `url(${loginImg})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'

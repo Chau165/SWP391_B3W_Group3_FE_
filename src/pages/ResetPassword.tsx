@@ -3,7 +3,8 @@ import { useNavigate, Link } from 'react-router-dom'
 import { GraduationCap } from 'lucide-react'
 import axios from 'axios'
 import fptLogo from '../assets/fpt-logo.png'
-import fptCampus from '../assets/dai-hoc-fpt-tp-hcm-1.jpeg'
+import loginImg from '../assets/login.jpg'
+
 
 const API_URL = '/api'
 
@@ -181,7 +182,7 @@ export default function ResetPassword() {
     <div 
       className="min-h-screen flex items-center justify-center px-4 relative"
       style={{
-        backgroundImage: `url(${fptCampus})`,
+        backgroundImage: `url(${loginImg})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
