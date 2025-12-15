@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Send } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Send } from 'lucide-react'
 import { useToast } from '../contexts/ToastContext'
 
 export default function EventRequestCreate() {
@@ -129,7 +128,7 @@ export default function EventRequestCreate() {
   }
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex justify-center">
       <div className="bg-white rounded-lg shadow-md p-8 max-w-3xl w-full">
         <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
           Gửi yêu cầu tổ chức sự kiện
@@ -260,7 +259,7 @@ export default function EventRequestCreate() {
           <div className="pt-4 flex justify-end space-x-4">
             <button
               type="button"
-              onClick={() => navigate('/dashboard/event-requests')}
+              onClick={() => navigate('/dashboard/my-event-requests')}
               className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               disabled={isSubmitting}
             >

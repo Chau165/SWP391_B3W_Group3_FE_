@@ -61,6 +61,14 @@ export default function Reports() {
   const [statsLoading, setStatsLoading] = useState(false)
   const [statsError, setStatsError] = useState<string | null>(null)
 
+  const [aggregatedStats, setAggregatedStats] = useState<{
+    totalRegistrations: number
+    totalCheckedIn: number
+    totalNotCheckedIn: number
+    eventsCount: number
+  } | null>(null)
+  const [aggregateLoading, setAggregateLoading] = useState(false)
+
   const token =
     typeof window !== 'undefined' ? localStorage.getItem('token') : null
 
@@ -153,14 +161,16 @@ export default function Reports() {
         }
 
         // Map về EventStats (chỉnh field name cho đúng với EventStatsDTO)
+        // ✅ API trả totalRegistered thay vì totalRegistrations
+        const totalReg = data.totalRegistered ?? data.totalRegistrations ?? data.totalTickets ?? 0
+        
         const mapped: EventStats = {
           eventId: data.eventId,
           eventTitle: data.eventTitle || data.title,
           startTime: data.startTime,
-          totalTickets: data.totalTickets ?? data.totalRegistrations ?? 0,
+          totalTickets: totalReg,
           totalCheckedIn: data.totalCheckedIn ?? 0,
-          totalRegistrations:
-            data.totalRegistrations ?? data.totalTickets ?? 0,
+          totalRegistrations: totalReg,
           eventType: data.eventType,
           registrations: data.registrations || [],
         }
@@ -182,6 +192,79 @@ export default function Reports() {
     (e) => String(e.id) === String(selectedEventId),
   )
 
+  // ============ Filter events by date range ============
+  const filteredEvents = events.filter((event) => {
+    if (!dateRange.start && !dateRange.end) return true
+    
+    if (!event.startTime) return true
+    
+    const eventDate = new Date(event.startTime)
+    
+    if (dateRange.start) {
+      const startDate = new Date(dateRange.start)
+      if (eventDate < startDate) return false
+    }
+    
+    if (dateRange.end) {
+      const endDate = new Date(dateRange.end)
+      endDate.setHours(23, 59, 59, 999)
+      if (eventDate > endDate) return false
+    }
+    
+    return true
+  })
+
+  // ============ Aggregate stats for filtered events ============
+  const handleFilterAndAggregate = async () => {
+    if (!token || filteredEvents.length === 0) return
+
+    setAggregateLoading(true)
+    
+    try {
+      const statsPromises = filteredEvents.map(async (event) => {
+        const res = await fetch(`/api/events/stats?eventId=${event.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'ngrok-skip-browser-warning': '1',
+          },
+          credentials: 'include',
+        })
+        
+        if (!res.ok) return null
+        
+        const data = await res.json()
+        return {
+          totalRegistered: data.totalRegistered ?? data.totalRegistrations ?? 0,
+          totalCheckedIn: data.totalCheckedIn ?? 0,
+        }
+      })
+
+      const statsResults = await Promise.all(statsPromises)
+      
+      const totals = statsResults.reduce(
+        (acc, stat) => {
+          if (stat) {
+            acc.totalRegistrations += stat.totalRegistered
+            acc.totalCheckedIn += stat.totalCheckedIn
+          }
+          return acc
+        },
+        { totalRegistrations: 0, totalCheckedIn: 0 }
+      )
+
+      setAggregatedStats({
+        totalRegistrations: totals.totalRegistrations,
+        totalCheckedIn: totals.totalCheckedIn,
+        totalNotCheckedIn: totals.totalRegistrations - totals.totalCheckedIn,
+        eventsCount: filteredEvents.length,
+      })
+    } catch (err) {
+      console.error('Aggregate stats error:', err)
+    } finally {
+      setAggregateLoading(false)
+    }
+  }
+
   // ============ Data đã map cho UI ============
 
   const registrations: Registration[] = selectedStats?.registrations || []
@@ -193,25 +276,37 @@ export default function Reports() {
       ? totalRegistrations - checkedInCount
       : 0
 
-  const totalEvents = events.length
+  const totalEvents = filteredEvents.length
   const totalCheckedIn = checkedInCount
 
-  // Chart data: 1 event đang chọn
-  const eventAttendanceData =
-    selectedStats && selectedEvent
-      ? [
-          {
-            name: selectedStats.eventTitle || selectedEvent.title,
-            'Đã đăng ký': totalRegistrations,
-            'Đã check-in': checkedInCount,
-          },
-        ]
-      : []
+  // Chart data: 1 event đang chọn hoặc tổng hợp
+  const eventAttendanceData = aggregatedStats
+    ? [
+        {
+          name: `Tổng hợp (${aggregatedStats.eventsCount} sự kiện)`,
+          'Đã đăng ký': aggregatedStats.totalRegistrations,
+          'Đã check-in': aggregatedStats.totalCheckedIn,
+        },
+      ]
+    : selectedStats && selectedEvent
+    ? [
+        {
+          name: selectedStats.eventTitle || selectedEvent.title,
+          'Đã đăng ký': totalRegistrations,
+          'Đã check-in': checkedInCount,
+        },
+      ]
+    : []
 
-  const checkInPieData = [
-    { name: 'Đã check-in', value: checkedInCount, color: '#10b981' },
-    { name: 'Chưa check-in', value: notCheckedInCount, color: '#f59e0b' },
-  ]
+  const checkInPieData = aggregatedStats
+    ? [
+        { name: 'Đã check-in', value: aggregatedStats.totalCheckedIn, color: '#10b981' },
+        { name: 'Chưa check-in', value: aggregatedStats.totalNotCheckedIn, color: '#f59e0b' },
+      ]
+    : [
+        { name: 'Đã check-in', value: checkedInCount, color: '#10b981' },
+        { name: 'Chưa check-in', value: notCheckedInCount, color: '#f59e0b' },
+      ]
 
   const eventTypeData: Record<string, number> = {}
   if (selectedStats?.eventType) {
@@ -307,8 +402,8 @@ export default function Reports() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               {eventsLoading && <option>Đang tải...</option>}
-              {!eventsLoading && <option value="">-- Chọn sự kiện --</option>}
-              {events.map((event) => (
+              {!eventsLoading && <option value="">-- Tất cả sự kiện trong khoảng thời gian --</option>}
+              {filteredEvents.map((event) => (
                 <option key={event.id} value={event.id}>
                   {event.title}
                 </option>
@@ -345,6 +440,16 @@ export default function Reports() {
             />
           </div>
         </div>
+        <div className="mt-4 flex justify-end">
+          <button
+            onClick={handleFilterAndAggregate}
+            disabled={aggregateLoading || filteredEvents.length === 0}
+            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            <Filter className="w-5 h-5 mr-2" />
+            {aggregateLoading ? 'Đang tính toán...' : 'Lọc và tính tổng'}
+          </button>
+        </div>
       </div>
 
       {/* Charts */}
@@ -352,11 +457,13 @@ export default function Reports() {
         {/* Event Attendance Chart */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold mb-4">
-            Thống kê tham dự theo sự kiện (đang chọn)
+            {aggregatedStats
+              ? `Biểu đồ tổng hợp (${aggregatedStats.eventsCount} sự kiện)`
+              : 'Thống kê tham dự theo sự kiện (đang chọn)'}
           </h2>
-          {statsLoading ? (
+          {statsLoading && !aggregatedStats ? (
             <p className="text-gray-500 text-sm">Đang tải thống kê...</p>
-          ) : statsError ? (
+          ) : statsError && !aggregatedStats ? (
             <p className="text-red-500 text-sm">{statsError}</p>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
@@ -374,10 +481,12 @@ export default function Reports() {
         </div>
 
         {/* Check-in Status Pie Chart */}
-        {selectedEvent && selectedStats && (
+        {(aggregatedStats || (selectedEvent && selectedStats)) && (
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4">
-              Trạng thái check-in: {selectedStats.eventTitle || selectedEvent.title}
+              {aggregatedStats
+                ? 'Tỷ lệ check-in tổng hợp'
+                : `Trạng thái check-in: ${selectedStats?.eventTitle || selectedEvent?.title}`}
             </h2>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
@@ -402,139 +511,81 @@ export default function Reports() {
             </ResponsiveContainer>
           </div>
         )}
-
-        {/* Event Type Distribution (demo: chỉ cho event đang chọn) */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Phân bố loại sự kiện</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={eventTypeChartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) =>
-                  `${name}: ${(percent * 100).toFixed(0)}%`
-                }
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {eventTypeChartData.map((_entry, index) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={['#3b82f6', '#10b981', '#f59e0b'][index % 3]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
       </div>
 
-      {/* Detailed Registration List */}
-      {selectedEvent && (
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">
-            Danh sách đăng ký: {selectedStats?.eventTitle || selectedEvent.title}
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Họ tên
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Mã SV
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ghế ngồi
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Thời gian đăng ký
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Trạng thái
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Thời gian check-in
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {registrations.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-6 py-4 text-center text-gray-500"
-                    >
-                      Chưa có đăng ký nào
-                    </td>
-                  </tr>
-                ) : (
-                  registrations.map((reg) => (
-                    <tr key={reg.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {reg.userName}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {reg.studentId || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {reg.userEmail}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {reg.seatNumber || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {format(
-                          new Date(reg.registeredAt),
-                          'dd/MM/yyyy HH:mm',
-                          { locale: vi },
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {reg.checkedIn ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Đã check-in
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                            <XCircle className="w-4 h-4 mr-1" />
-                            Chưa check-in
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {reg.checkedInAt
-                          ? format(
-                              new Date(reg.checkedInAt),
-                              'dd/MM/yyyy HH:mm',
-                              { locale: vi },
-                            )
-                          : '-'}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+      {/* Aggregated Results */}
+      {aggregatedStats && (
+        <>
+          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-semibold mb-4 text-blue-600">
+              Thống kê tổng hợp ({aggregatedStats.eventsCount} sự kiện)
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Tổng đăng ký</p>
+                    <p className="text-3xl font-bold text-blue-600 mt-2">
+                      {aggregatedStats.totalRegistrations}
+                    </p>
+                  </div>
+                  <Users className="w-10 h-10 text-blue-500" />
+                </div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Đã check-in</p>
+                    <p className="text-3xl font-bold text-green-600 mt-2">
+                      {aggregatedStats.totalCheckedIn}
+                    </p>
+                  </div>
+                  <CheckCircle className="w-10 h-10 text-green-500" />
+                </div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Chưa check-in</p>
+                    <p className="text-3xl font-bold text-orange-600 mt-2">
+                      {aggregatedStats.totalNotCheckedIn}
+                    </p>
+                  </div>
+                  <XCircle className="w-10 h-10 text-orange-500" />
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <p className="text-sm text-gray-600">
+                Tỷ lệ check-in:{' '}
+                <span className="font-bold text-lg text-green-600">
+                  {aggregatedStats.totalRegistrations > 0
+                    ? Math.round(
+                        (aggregatedStats.totalCheckedIn /
+                          aggregatedStats.totalRegistrations) *
+                          100
+                      )
+                    : 0}
+                  %
+                </span>
+              </p>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Summary Table  – có thể sau này fetch stats cho tất cả event để fill thêm */}
-      {!selectedEvent && (
+      {!selectedEvent && !aggregatedStats && (
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-4">Tóm tắt theo sự kiện</h2>
-          <p className="text-sm text-gray-500">
-            Chọn 1 sự kiện ở trên để xem chi tiết thống kê.
+          <h2 className="text-xl font-semibold mb-4">Hướng dẫn sử dụng</h2>
+          <div className="space-y-2 text-sm text-gray-600">
+            <p>• <strong>Chọn khoảng thời gian:</strong> Sử dụng "Từ ngày" và "Đến ngày" để lọc các sự kiện trong khoảng thời gian cụ thể</p>
+            <p>• <strong>Xem tổng hợp:</strong> Nhấn nút "Lọc và tính tổng" để xem thống kê tổng hợp của tất cả sự kiện trong khoảng thời gian</p>
+            <p>• <strong>Xem chi tiết:</strong> Chọn 1 sự kiện cụ thể để xem thống kê chi tiết cho sự kiện đó</p>
+          </div>
+          <p className="mt-4 text-sm text-gray-500 italic">
+            Hiện tại: Đang hiển thị {filteredEvents.length} sự kiện
+            {(dateRange.start || dateRange.end) && ' trong khoảng thời gian đã chọn'}
           </p>
         </div>
       )}
