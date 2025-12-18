@@ -269,7 +269,7 @@ export default function Layout() {
                     className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Cấu hình
+                    Chính Sách
                   </Link>
                 </>
               )}

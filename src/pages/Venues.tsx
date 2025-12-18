@@ -5,6 +5,8 @@ import VenueList from '../components/venues/VenueList'
 import VenueFormModal from '../components/venues/VenueFormModal'
 import AreaListSection from '../components/venues/AreaListSection'
 import AreaFormModal from '../components/venues/AreaFormModal'
+import { useToast } from '../contexts/ToastContext'
+import ConfirmModal from '../components/common/ConfirmModal'
 
 export default function Venues() {
   const [search, setSearch] = useState('')
@@ -15,6 +17,10 @@ export default function Venues() {
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null)
   const [isAreaModalOpen, setIsAreaModalOpen] = useState(false)
   const [editingArea, setEditingArea] = useState<Area | null>(null)
+  const { showToast } = useToast()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmMessage, setConfirmMessage] = useState('')
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null)
 
   const fetchVenues = async () => {
     try {
@@ -65,7 +71,7 @@ export default function Venues() {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        alert('Bạn cần đăng nhập để thực hiện thao tác này')
+        showToast('error', 'Bạn cần đăng nhập để thực hiện thao tác này')
         return
       }
 
@@ -78,29 +84,35 @@ export default function Venues() {
       await fetchVenues()
     } catch (error) {
       console.error('Error saving venue:', error)
-      alert('Có lỗi xảy ra khi lưu địa điểm')
+      showToast('error', 'Có lỗi xảy ra khi lưu địa điểm')
       throw error
     }
   }
 
-  const handleDeleteVenue = async (venueId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa địa điểm này?')) {
-      return
-    }
-
+  const performDeleteVenue = async (venueId: number) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        alert('Bạn cần đăng nhập để thực hiện thao tác này')
+        showToast('error', 'Bạn cần đăng nhập để thực hiện thao tác này')
         return
       }
 
       await venueService.delete(venueId)
       await fetchVenues()
+      showToast('success', 'Xóa địa điểm thành công!')
     } catch (error) {
       console.error('Error deleting venue:', error)
-      alert('Có lỗi xảy ra khi xóa địa điểm')
+      showToast('error', 'Có lỗi xảy ra khi xóa địa điểm')
+    } finally {
+      setConfirmOpen(false)
+      setConfirmAction(null)
     }
+  }
+
+  const handleDeleteVenue = (venueId: number) => {
+    setConfirmMessage('Bạn có chắc chắn muốn xóa địa điểm này?')
+    setConfirmAction(() => () => performDeleteVenue(venueId))
+    setConfirmOpen(true)
   }
 
   // Area handlers
@@ -120,16 +132,16 @@ export default function Venues() {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        alert('Bạn cần đăng nhập để thực hiện thao tác này')
+        showToast('error', 'Bạn cần đăng nhập để thực hiện thao tác này')
         return
       }
 
       if (editingArea) {
         await areaService.update(data)
-        alert('Cập nhật phòng thành công!')
+        showToast('success', 'Cập nhật phòng thành công!')
       } else {
         await areaService.create(data)
-        alert('Thêm phòng thành công!')
+        showToast('success', 'Thêm phòng thành công!')
       }
       
       fetchVenues()
@@ -140,36 +152,41 @@ export default function Venues() {
       }
     } catch (error) {
       console.error('Error saving area:', error)
-      alert(`Có lỗi xảy ra khi ${editingArea ? 'cập nhật' : 'thêm'} phòng`)
+      showToast('error', `Có lỗi xảy ra khi ${editingArea ? 'cập nhật' : 'thêm'} phòng`)
       throw error
     }
   }
 
-  const handleDeleteArea = async (areaId: number) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa phòng này?')) {
-      return
-    }
-
+  const performDeleteArea = async (areaId: number) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
-        alert('Bạn cần đăng nhập để thực hiện thao tác này')
+        showToast('error', 'Bạn cần đăng nhập để thực hiện thao tác này')
         return
       }
 
       await areaService.delete(areaId)
-      alert('Xóa phòng thành công!')
-      
+      showToast('success', 'Xóa phòng thành công!')
+
       fetchVenues()
-      
+
       if (selectedVenue) {
         const freshAreas = await areaService.getByVenueId(selectedVenue.venueId)
         setSelectedVenue({ ...selectedVenue, areas: freshAreas })
       }
     } catch (error) {
       console.error('Error deleting area:', error)
-      alert('Có lỗi xảy ra khi xóa phòng')
+      showToast('error', 'Có lỗi xảy ra khi xóa phòng')
+    } finally {
+      setConfirmOpen(false)
+      setConfirmAction(null)
     }
+  }
+
+  const handleDeleteArea = (areaId: number) => {
+    setConfirmMessage('Bạn có chắc chắn muốn xóa phòng này?')
+    setConfirmAction(() => () => performDeleteArea(areaId))
+    setConfirmOpen(true)
   }
 
   const filtered = venues.filter(v =>
@@ -249,6 +266,12 @@ export default function Venues() {
         venueId={selectedVenue?.venueId || 0}
         onClose={() => setIsAreaModalOpen(false)}
         onSubmit={handleSubmitArea}
+      />
+      <ConfirmModal
+        isOpen={confirmOpen}
+        message={confirmMessage}
+        onConfirm={() => confirmAction && confirmAction()}
+        onClose={() => { setConfirmOpen(false); setConfirmAction(null) }}
       />
     </div>
   )

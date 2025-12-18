@@ -247,7 +247,9 @@ export default function MyTickets() {
                           )}
                         </div>
                       </div>
-                      {status === 'CHECKED_OUT' ? (
+                      {status === 'EXPIRED' ? (
+                        <XCircle className="w-6 h-6 text-red-500" />
+                      ) : status === 'CHECKED_OUT' ? (
                         <LogOut className="w-6 h-6 text-purple-500" />
                       ) : checkedIn ? (
                         <CheckCircle className="w-6 h-6 text-green-500" />
@@ -260,14 +262,18 @@ export default function MyTickets() {
                       <p className="text-sm text-gray-600 mb-2">Trạng thái:</p>
                       <span
                         className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                          status === 'CHECKED_OUT'
+                          status === 'EXPIRED'
+                            ? 'bg-red-100 text-red-800'
+                            : status === 'CHECKED_OUT'
                             ? 'bg-purple-100 text-purple-800'
                             : status === 'CHECKED_IN'
                             ? 'bg-green-100 text-green-800'
                             : 'bg-yellow-100 text-yellow-800'
                         }`}
                       >
-                        {status === 'CHECKED_OUT'
+                        {status === 'EXPIRED'
+                          ? 'Hết hạn'
+                          : status === 'CHECKED_OUT'
                           ? 'Đã check-out'
                           : status === 'CHECKED_IN'
                           ? 'Đã check-in'

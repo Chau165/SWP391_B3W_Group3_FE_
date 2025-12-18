@@ -43,7 +43,10 @@ type EventStats = {
   startTime?: string
   totalTickets: number
   totalCheckedIn: number
+  totalCheckedOut: number
   totalRegistrations?: number // nếu DTO không có thì BE có thể set = totalTickets
+  checkInRate?: string
+  checkOutRate?: string
   eventType?: string
   registrations?: Registration[]
 }
@@ -64,6 +67,7 @@ export default function Reports() {
   const [aggregatedStats, setAggregatedStats] = useState<{
     totalRegistrations: number
     totalCheckedIn: number
+    totalCheckedOut: number
     totalNotCheckedIn: number
     eventsCount: number
   } | null>(null)
@@ -170,7 +174,10 @@ export default function Reports() {
           startTime: data.startTime,
           totalTickets: totalReg,
           totalCheckedIn: data.totalCheckedIn ?? 0,
+          totalCheckedOut: data.totalCheckedOut ?? 0,
           totalRegistrations: totalReg,
+          checkInRate: data.checkInRate,
+          checkOutRate: data.checkOutRate,
           eventType: data.eventType,
           registrations: data.registrations || [],
         }
@@ -236,6 +243,7 @@ export default function Reports() {
         return {
           totalRegistered: data.totalRegistered ?? data.totalRegistrations ?? 0,
           totalCheckedIn: data.totalCheckedIn ?? 0,
+          totalCheckedOut: data.totalCheckedOut ?? 0,
         }
       })
 
@@ -246,15 +254,17 @@ export default function Reports() {
           if (stat) {
             acc.totalRegistrations += stat.totalRegistered
             acc.totalCheckedIn += stat.totalCheckedIn
+            acc.totalCheckedOut += stat.totalCheckedOut
           }
           return acc
         },
-        { totalRegistrations: 0, totalCheckedIn: 0 }
+        { totalRegistrations: 0, totalCheckedIn: 0, totalCheckedOut: 0 }
       )
 
       setAggregatedStats({
         totalRegistrations: totals.totalRegistrations,
         totalCheckedIn: totals.totalCheckedIn,
+        totalCheckedOut: totals.totalCheckedOut,
         totalNotCheckedIn: totals.totalRegistrations - totals.totalCheckedIn,
         eventsCount: filteredEvents.length,
       })
@@ -269,6 +279,7 @@ export default function Reports() {
 
   const registrations: Registration[] = selectedStats?.registrations || []
   const checkedInCount = selectedStats?.totalCheckedIn ?? 0
+  const checkedOutCount = selectedStats?.totalCheckedOut ?? 0
   const totalRegistrations =
     selectedStats?.totalRegistrations ?? selectedStats?.totalTickets ?? 0
   const notCheckedInCount =
@@ -278,6 +289,7 @@ export default function Reports() {
 
   const totalEvents = filteredEvents.length
   const totalCheckedIn = checkedInCount
+  const totalCheckedOut = checkedOutCount
 
   // Chart data: 1 event đang chọn hoặc tổng hợp
   const eventAttendanceData = aggregatedStats
@@ -286,6 +298,7 @@ export default function Reports() {
           name: `Tổng hợp (${aggregatedStats.eventsCount} sự kiện)`,
           'Đã đăng ký': aggregatedStats.totalRegistrations,
           'Đã check-in': aggregatedStats.totalCheckedIn,
+          'Đã check-out': aggregatedStats.totalCheckedOut,
         },
       ]
     : selectedStats && selectedEvent
@@ -294,6 +307,7 @@ export default function Reports() {
           name: selectedStats.eventTitle || selectedEvent.title,
           'Đã đăng ký': totalRegistrations,
           'Đã check-in': checkedInCount,
+          'Đã check-out': checkedOutCount,
         },
       ]
     : []
@@ -301,10 +315,12 @@ export default function Reports() {
   const checkInPieData = aggregatedStats
     ? [
         { name: 'Đã check-in', value: aggregatedStats.totalCheckedIn, color: '#10b981' },
+        { name: 'Đã check-out', value: aggregatedStats.totalCheckedOut, color: '#8b5cf6' },
         { name: 'Chưa check-in', value: aggregatedStats.totalNotCheckedIn, color: '#f59e0b' },
       ]
     : [
         { name: 'Đã check-in', value: checkedInCount, color: '#10b981' },
+        { name: 'Đã check-out', value: checkedOutCount, color: '#8b5cf6' },
         { name: 'Chưa check-in', value: notCheckedInCount, color: '#f59e0b' },
       ]
 
@@ -363,23 +379,53 @@ export default function Reports() {
                 {totalCheckedIn}
               </p>
             </div>
-            <CheckCircle className="w-12 h-12 text-purple-500" />
+            <CheckCircle className="w-12 h-12 text-green-500" />
           </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Tỷ lệ check-in</p>
+              <p className="text-sm text-gray-600">Tổng check-out</p>
               <p className="text-3xl font-bold text-gray-900 mt-2">
-                {totalRegistrations > 0
-                  ? Math.round((totalCheckedIn / totalRegistrations) * 100)
-                  : 0}
-                %
+                {totalCheckedOut}
+              </p>
+            </div>
+            <XCircle className="w-12 h-12 text-purple-500" />
+          </div>
+        </div>
+      </div>
+
+      {/* Check-in/Check-out Rate Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Tỷ lệ check-in</p>
+              <p className="text-3xl font-bold text-green-600 mt-2">
+                {selectedStats?.checkInRate || (totalRegistrations > 0
+                  ? Math.round((totalCheckedIn / totalRegistrations) * 100) + '%'
+                  : '0%')}
               </p>
             </div>
             <div className="w-12 h-12 flex items-center justify-center bg-green-100 rounded-full">
-              <span className="text-2xl">✓</span>
+              <span className="text-2xl text-green-600">✓</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Tỷ lệ check-out</p>
+              <p className="text-3xl font-bold text-purple-600 mt-2">
+                {selectedStats?.checkOutRate || (totalCheckedIn > 0
+                  ? Math.round((totalCheckedOut / totalCheckedIn) * 100) + '%'
+                  : '0%')}
+              </p>
+            </div>
+            <div className="w-12 h-12 flex items-center justify-center bg-purple-100 rounded-full">
+              <span className="text-2xl text-purple-600">↩</span>
             </div>
           </div>
         </div>
@@ -475,6 +521,7 @@ export default function Reports() {
                 <Legend />
                 <Bar dataKey="Đã đăng ký" fill="#3b82f6" />
                 <Bar dataKey="Đã check-in" fill="#10b981" />
+                <Bar dataKey="Đã check-out" fill="#8b5cf6" />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -520,7 +567,7 @@ export default function Reports() {
             <h2 className="text-xl font-semibold mb-4 text-blue-600">
               Thống kê tổng hợp ({aggregatedStats.eventsCount} sự kiện)
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-blue-50 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -543,6 +590,17 @@ export default function Reports() {
                   <CheckCircle className="w-10 h-10 text-green-500" />
                 </div>
               </div>
+              <div className="bg-purple-50 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-600">Đã check-out</p>
+                    <p className="text-3xl font-bold text-purple-600 mt-2">
+                      {aggregatedStats.totalCheckedOut}
+                    </p>
+                  </div>
+                  <XCircle className="w-10 h-10 text-purple-500" />
+                </div>
+              </div>
               <div className="bg-orange-50 rounded-lg p-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -555,7 +613,7 @@ export default function Reports() {
                 </div>
               </div>
             </div>
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-4 pt-4 border-t border-gray-200 flex gap-8">
               <p className="text-sm text-gray-600">
                 Tỷ lệ check-in:{' '}
                 <span className="font-bold text-lg text-green-600">
@@ -563,6 +621,19 @@ export default function Reports() {
                     ? Math.round(
                         (aggregatedStats.totalCheckedIn /
                           aggregatedStats.totalRegistrations) *
+                          100
+                      )
+                    : 0}
+                  %
+                </span>
+              </p>
+              <p className="text-sm text-gray-600">
+                Tỷ lệ check-out:{' '}
+                <span className="font-bold text-lg text-purple-600">
+                  {aggregatedStats.totalCheckedIn > 0
+                    ? Math.round(
+                        (aggregatedStats.totalCheckedOut /
+                          aggregatedStats.totalCheckedIn) *
                           100
                       )
                     : 0}

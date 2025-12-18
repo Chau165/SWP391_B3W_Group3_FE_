@@ -95,9 +95,15 @@ export function SeatGrid({ seats, loading = false, selectedSeats = [], onSeatSel
   const vipRows = sortedRows.filter(row => 
     seatsByRow[row].some(seat => seat.seatType === 'VIP')
   )
+  const standardRows = sortedRows.filter(row => 
+    seatsByRow[row].some(seat => seat.seatType === 'STANDARD')
+  )
   const firstVipRow = vipRows[0]
   const lastVipRow = vipRows[vipRows.length - 1]
+  const firstStandardRow = standardRows[0]
+  const lastStandardRow = standardRows[standardRows.length - 1]
   const hasVipSection = vipRows.length > 0
+  const hasStandardSection = standardRows.length > 0
 
   return (
     <div className="mb-6">
@@ -115,42 +121,59 @@ export function SeatGrid({ seats, loading = false, selectedSeats = [], onSeatSel
         {sortedRows.map((row, rowIndex) => {
           const seatGrid = createSeatGrid(seatsByRow[row], maxColumns)
           const isVipRow = vipRows.includes(row)
+          const isStandardRow = standardRows.includes(row)
           const isFirstVipRow = row === firstVipRow
           const isLastVipRow = row === lastVipRow
+          const isFirstStandardRow = row === firstStandardRow
+          const isLastStandardRow = row === lastStandardRow
           
           return (
-            <div 
-              key={row} 
-              className="flex items-center space-x-2"
-            >
-              <div className="w-8 text-center font-semibold text-gray-700 text-sm">{row}</div>
-              <div className={`flex gap-2 ${
-                isVipRow 
-                  ? `${isFirstVipRow ? 'pt-3' : ''} ${isLastVipRow ? 'pb-3' : ''} pl-2 pr-2 border-l-4 border-r-4 border-red-500 ${
-                      isFirstVipRow ? 'border-t-4 rounded-t-lg' : ''
-                    } ${
-                      isLastVipRow ? 'border-b-4 rounded-b-lg' : ''
-                    } bg-red-50/30`
-                  : ''
-              }`}>
-                {seatGrid.map((seat, index) => (
-                  seat ? (
-                    <button
-                      key={seat.seatId}
-                      type="button"
-                      onClick={() => seat.status === 'AVAILABLE' && onSeatSelect(seat)}
-                      disabled={seat.status !== 'AVAILABLE'}
-                      className={`w-12 h-10 border-2 rounded-lg text-xs font-medium transition-colors ${
-                        getSeatColor(seat, selectedSeats.some(s => s.seatId === seat.seatId))
-                      }`}
-                      title={`${seat.seatCode} (${seat.seatType}): ${seat.status}`}
-                    >
-                      {maxReached && !selectedSeats.some(s => s.seatId === seat.seatId) ? '' : seat.seatCode}
-                    </button>
-                  ) : (
-                    <div key={`empty-${row}-${index}`} className="w-12 h-10"></div>
-                  )
-                ))}
+            <div key={row}>
+              {/* STANDARD Section Label - hiện trước hàng STANDARD đầu tiên */}
+              {isFirstStandardRow && hasStandardSection && (
+                <div className="mb-2 mt-4 flex items-center gap-2">
+                  <div className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full border border-blue-300">
+                    STANDARD SECTION
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex items-center space-x-2">
+                <div className="w-8 text-center font-semibold text-gray-700 text-sm">{row}</div>
+                <div className={`flex gap-2 ${
+                  isVipRow 
+                    ? `${isFirstVipRow ? 'pt-3' : ''} ${isLastVipRow ? 'pb-3' : ''} pl-2 pr-2 border-l-4 border-r-4 border-red-500 ${
+                        isFirstVipRow ? 'border-t-4 rounded-t-lg' : ''
+                      } ${
+                        isLastVipRow ? 'border-b-4 rounded-b-lg' : ''
+                      } bg-red-50/30`
+                    : isStandardRow
+                    ? `${isFirstStandardRow ? 'pt-3' : ''} ${isLastStandardRow ? 'pb-3' : ''} pl-2 pr-2 border-l-4 border-r-4 border-blue-400 ${
+                        isFirstStandardRow ? 'border-t-4 rounded-t-lg' : ''
+                      } ${
+                        isLastStandardRow ? 'border-b-4 rounded-b-lg' : ''
+                      } bg-blue-50/30`
+                    : ''
+                }`}>
+                  {seatGrid.map((seat, index) => (
+                    seat ? (
+                      <button
+                        key={seat.seatId}
+                        type="button"
+                        onClick={() => seat.status === 'AVAILABLE' && onSeatSelect(seat)}
+                        disabled={seat.status !== 'AVAILABLE'}
+                        className={`w-12 h-10 border-2 rounded-lg text-xs font-medium transition-colors ${
+                          getSeatColor(seat, selectedSeats.some(s => s.seatId === seat.seatId))
+                        }`}
+                        title={`${seat.seatCode} (${seat.seatType}): ${seat.status}`}
+                      >
+                        {maxReached && !selectedSeats.some(s => s.seatId === seat.seatId) ? '' : seat.seatCode}
+                      </button>
+                    ) : (
+                      <div key={`empty-${row}-${index}`} className="w-12 h-10"></div>
+                    )
+                  ))}
+                </div>
               </div>
             </div>
           )

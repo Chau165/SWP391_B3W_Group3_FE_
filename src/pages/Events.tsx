@@ -4,6 +4,8 @@ import { Calendar, MapPin, Users, Edit, Trash2, List, CalendarDays, Clock } from
 import { format, startOfDay, isAfter } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { useState, useEffect } from 'react'
+import { useToast } from '../contexts/ToastContext'
+import ConfirmModal from '../components/common/ConfirmModal'
 import { EventCalendar } from '../components/events/EventCalendar'
 import { EventDetailModal } from '../components/events/EventDetailModal'
 import type { EventListItem, EventDetail } from '../types/event'
@@ -14,6 +16,7 @@ export default function Events() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const isOrganizer = user?.role === 'ORGANIZER'
+  const isStaff = user?.role === 'STAFF'
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
   const [events, setEvents] = useState<EventListItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -21,6 +24,11 @@ export default function Events() {
   const [selectedEvent, setSelectedEvent] = useState<EventDetail | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const { showToast } = useToast()
+  const [disablingIds, setDisablingIds] = useState<number[]>([])
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirmMessage, setConfirmMessage] = useState('')
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null)
 
   useEffect(() => {
     fetchEvents()
@@ -82,6 +90,56 @@ export default function Events() {
 
   const handleEventClick = (event: EventListItem) => {
     fetchEventDetail(event.eventId)
+  }
+
+  const performDisableEvent = async (eventId: number) => {
+    try {
+      setDisablingIds(prev => [...prev, eventId])
+      const token = localStorage.getItem('token')
+
+      const body = new URLSearchParams()
+      body.append('eventId', String(eventId))
+
+      const res = await fetch('http://localhost:3000/api/event/disable', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: body.toString()
+      })
+
+      let payload: any = null
+      try {
+        payload = await res.json()
+      } catch (e) {
+        payload = null
+      }
+
+      if (res.ok) {
+        showToast('success', payload?.message || 'Vô hiệu hóa event thành công')
+        await fetchEvents()
+      } else if (res.status === 409) {
+        showToast('error', payload?.message || 'Không thể vô hiệu hóa: đã có vé')
+      } else if (res.status === 404) {
+        showToast('error', payload?.message || 'Event không tồn tại')
+      } else {
+        showToast('error', payload?.message || 'Lỗi khi vô hiệu hóa event')
+      }
+    } catch (error) {
+      console.error('Disable event error', error)
+      showToast('error', error instanceof Error ? error.message : 'Lỗi hệ thống')
+    } finally {
+      setDisablingIds(prev => prev.filter(id => id !== eventId))
+      setConfirmOpen(false)
+      setConfirmAction(null)
+    }
+  }
+
+  const handleDisableEvent = (eventId: number) => {
+    setConfirmMessage('Bạn có chắc chắn muốn vô hiệu hóa (đóng) sự kiện này?')
+    setConfirmAction(() => () => performDisableEvent(eventId))
+    setConfirmOpen(true)
   }
 
   const handleCloseModal = () => {
@@ -195,21 +253,27 @@ export default function Events() {
                             <h3 className="text-xl font-semibold text-gray-900 flex-1 line-clamp-2 min-h-[3.5rem]">
                               {event.title}
                             </h3>
-                            {isOrganizer && (
+                            {(isOrganizer || isStaff) && (
                               <div className="flex space-x-2 ml-2 flex-shrink-0">
-                                <Link
-                                  to={`/dashboard/events/${event.eventId}/edit`}
-                                  className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-                                  title="Chỉnh sửa"
-                                >
-                                  <Edit size={18} />
-                                </Link>
-                                <button
-                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                  title="Xóa"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
+                                {isOrganizer && (
+                                  <Link
+                                    to={`/dashboard/events/${event.eventId}/edit`}
+                                    className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                                    title="Chỉnh sửa"
+                                  >
+                                    <Edit size={18} />
+                                  </Link>
+                                )}
+                                {isStaff && (
+                                  <button
+                                    onClick={() => handleDisableEvent(event.eventId)}
+                                    className={`p-1 ${disablingIds.includes(event.eventId) ? 'text-gray-400' : 'text-red-600 hover:bg-red-50'} rounded`}
+                                    title="Xóa"
+                                    disabled={disablingIds.includes(event.eventId)}
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>
@@ -284,21 +348,27 @@ export default function Events() {
                             <h3 className="text-xl font-semibold text-gray-600 flex-1 line-clamp-2 min-h-[3.5rem]">
                               {event.title}
                             </h3>
-                            {isOrganizer && (
+                            {(isOrganizer || isStaff) && (
                               <div className="flex space-x-2 ml-2 flex-shrink-0">
-                                <Link
-                                  to={`/dashboard/events/${event.eventId}/edit`}
-                                  className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                                  title="Chỉnh sửa"
-                                >
-                                  <Edit size={18} />
-                                </Link>
-                                <button
-                                  className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                                  title="Xóa"
-                                >
-                                  <Trash2 size={18} />
-                                </button>
+                                {isOrganizer && (
+                                  <Link
+                                    to={`/dashboard/events/${event.eventId}/edit`}
+                                    className="p-1 text-gray-400 hover:bg-gray-100 rounded"
+                                    title="Chỉnh sửa"
+                                  >
+                                    <Edit size={18} />
+                                  </Link>
+                                )}
+                                {isStaff && (
+                                  <button
+                                    onClick={() => handleDisableEvent(event.eventId)}
+                                    className={`p-1 ${disablingIds.includes(event.eventId) ? 'text-gray-400' : 'text-gray-400 hover:bg-gray-100'} rounded`}
+                                    title="Xóa"
+                                    disabled={disablingIds.includes(event.eventId)}
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>
@@ -355,6 +425,12 @@ export default function Events() {
         loading={loadingDetail}
         error={null}
         token={localStorage.getItem('token')}
+      />
+      <ConfirmModal
+        isOpen={confirmOpen}
+        message={confirmMessage}
+        onConfirm={() => confirmAction && confirmAction()}
+        onClose={() => { setConfirmOpen(false); setConfirmAction(null) }}
       />
     </div>
   )

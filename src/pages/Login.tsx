@@ -25,7 +25,7 @@ interface FormData {
 // 4. Copy Site Key và dán vào đây
 //const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' // Test key - THAY BẰNG SITE KEY THẬT
 const RECAPTCHA_SITE_KEY = '6LcRNiUsAAAAAOTRRAnoQAHXQNfIFx5v49ZAbnsK' 
-const USE_REAL_RECAPTCHA = true // Đổi thành false để dùng TEST_BYPASS khi debug nhanh
+const USE_REAL_RECAPTCHA = false // Đổi thành false để dùng TEST_BYPASS khi debug nhanh
 
 export default function Login() {
   const [formData, setFormData] = useState<FormData>({

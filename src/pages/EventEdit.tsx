@@ -23,6 +23,7 @@ export default function EventEdit() {
    const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expectedCapacity, setExpectedCapacity] = useState<number>(0)
+  const [isEventOpen, setIsEventOpen] = useState<boolean>(false)
   
   const [speaker, setSpeaker] = useState({
     fullName: '',
@@ -97,6 +98,15 @@ export default function EventEdit() {
     }
   }, [id])
 
+  // Fetch event details on mount to pre-fill the form (speaker, tickets, banner)
+  useEffect(() => {
+    if (id) {
+      setLoading(true)
+      fetchEventDetails()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
+
    // Removed fetching event details to avoid viewing them on this page
 
   const fetchEventDetails = async () => {
@@ -111,11 +121,73 @@ export default function EventEdit() {
       if (response.ok) {
         const data = await response.json()
         console.log('Event details:', data)
-        
-        // Pre-fill form if data exists
-        if (data.bannerUrl) {
-          setBannerUrl(data.bannerUrl)
-          setImagePreview(data.bannerUrl)
+
+        // Determine status first
+        const statusStr = data.status ? String(data.status).toUpperCase() : ''
+        const isOpen = statusStr === 'OPEN'
+        setIsEventOpen(isOpen)
+
+        if (isOpen) {
+          // Only pre-fill when event is OPEN: show existing speaker/tickets/banner and lock quantities
+          if (data.bannerUrl) {
+            setBannerUrl(data.bannerUrl)
+            setImagePreview(data.bannerUrl)
+          }
+
+          // Speaker: tolerant to different API shapes (array, nested, or top-level variants)
+          const speakerFromApi = (() => {
+            if (Array.isArray(data.speakers) && data.speakers.length > 0) return data.speakers[0]
+            if (data.speaker) return data.speaker
+            return {
+              fullName:
+                data.speakerFullName || data.speakerName || data.speaker_full_name || data.speakerFullname || data.speaker || '',
+              bio:
+                data.speakerBio || data.speaker_bio || data.speakerDescription || data.speaker_description || '',
+              email:
+                data.speakerEmail || data.speaker_email || data.contactEmail || data.contact_email || data.email || '',
+              phone:
+                data.speakerPhone || data.speaker_phone || data.phone || data.phoneNumber || data.mobile || data.contactPhone || data.contact_phone || '',
+              avatarUrl:
+                data.speakerAvatarUrl || data.speaker_avatar_url || data.avatarUrl || data.speakerAvatar || data.speaker_avatar || ''
+            }
+          })()
+
+          if (speakerFromApi) {
+            setSpeaker(prev => ({
+              ...prev,
+              fullName: speakerFromApi.fullName || '',
+              bio: speakerFromApi.bio || '',
+              email: speakerFromApi.email || '',
+              phone: speakerFromApi.phone || '',
+              avatarUrl: speakerFromApi.avatarUrl || ''
+            }))
+            if (speakerFromApi.avatarUrl) setAvatarPreview(speakerFromApi.avatarUrl)
+          }
+
+          // Tickets: prefill price, description and maxQuantity
+          if (Array.isArray(data.tickets) && data.tickets.length > 0) {
+            const mapped = data.tickets.map((tk: any) => ({
+              name: tk.name || 'STANDARD',
+              description: tk.description || '',
+              price: Number(tk.price) || 0,
+              maxQuantity: Number(tk.maxQuantity) || 0,
+              status: tk.status || 'ACTIVE'
+            }))
+            setTickets(mapped)
+          }
+
+        } else {
+          // If event is CLOSED (or not OPEN), do NOT prefill speaker/tickets/banner
+          // Keep defaults so organizer can enter new speaker/ticket info and edit quantities
+          setBannerUrl('')
+          setImagePreview(null)
+          setSpeaker({ fullName: '', bio: '', email: '', phone: '', avatarUrl: '' })
+          setAvatarPreview(null)
+          // Reset tickets to defaults (allow editing quantities)
+          setTickets([
+            { name: 'VIP', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' },
+            { name: 'STANDARD', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' }
+          ])
         }
       } else {
         throw new Error('Failed to fetch event details')
@@ -179,6 +251,10 @@ export default function EventEdit() {
   const MAX_TICKETS = 2 // Maximum number of ticket types allowed
 
   const handleAddTicket = () => {
+    if (isEventOpen) {
+      showToast('warning', 'Không thể thêm loại vé khi sự kiện đang mở')
+      return
+    }
     if (tickets.length >= MAX_TICKETS) {
       showToast('warning', `Tối đa chỉ được thêm ${MAX_TICKETS} loại vé`)
       return
@@ -194,6 +270,10 @@ export default function EventEdit() {
   }
 
   const handleRemoveTicket = (index: number) => {
+    if (isEventOpen) {
+      showToast('warning', 'Không thể xóa loại vé khi sự kiện đang mở')
+      return
+    }
     if (tickets.length <= 1) {
       setError('Phải có ít nhất 1 loại vé')
       return
@@ -435,6 +515,13 @@ export default function EventEdit() {
           Cập nhật thông tin sự kiện
         </h1>
 
+        {/* Informational banner when event is CLOSED */}
+        {!isEventOpen && (
+          <div className="mb-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800">
+            Sự kiện hiện đang không ở trạng thái mở (CLOSED). Form sẽ không tự động điền dữ liệu hiện tại — vui lòng nhập thông tin mới. Bạn vẫn có thể chỉnh sửa số lượng vé.
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* Speaker Information */}
           <div className="border-b pb-6">
@@ -546,21 +633,26 @@ export default function EventEdit() {
 
           {/* Tickets */}
           <div className="border-b pb-6">
-            <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Thông tin vé</h2>
-              <button
-                type="button"
-                onClick={handleAddTicket}
-                disabled={tickets.length >= MAX_TICKETS}
-                className={`inline-flex items-center px-4 py-2 text-white text-sm rounded-lg transition-colors ${
-                  tickets.length >= MAX_TICKETS
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700'
-                }`}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Thêm loại vé ({tickets.length}/{MAX_TICKETS})
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleAddTicket}
+                  disabled={tickets.length >= MAX_TICKETS || isEventOpen}
+                  className={`inline-flex items-center px-4 py-2 text-white text-sm rounded-lg transition-colors ${
+                    tickets.length >= MAX_TICKETS || isEventOpen
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-700'
+                  }`}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Thêm loại vé ({tickets.length}/{MAX_TICKETS})
+                </button>
+                {isEventOpen && (
+                  <span className="text-sm text-red-600">Sự kiện đang mở — không thể thay đổi số lượng vé</span>
+                )}
+              </div>
             </div>
             
             {tickets.map((ticket, index) => (
@@ -584,8 +676,9 @@ export default function EventEdit() {
                     <button
                       type="button"
                       onClick={() => handleRemoveTicket(index)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Xóa loại vé"
+                      disabled={isEventOpen}
+                      className={`p-2 rounded-lg transition-colors ${isEventOpen ? 'text-gray-400 hover:bg-transparent cursor-not-allowed' : 'text-red-600 hover:bg-red-50'}`}
+                      title={isEventOpen ? 'Không thể xóa khi sự kiện đang mở' : 'Xóa loại vé'}
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
@@ -628,12 +721,14 @@ export default function EventEdit() {
                       <input
                         type="number"
                         value={ticket.maxQuantity}
+                        // Make maxQuantity read-only when event is open
+                        readOnly={isEventOpen}
                         onChange={(e) => handleTicketChange(index, 'maxQuantity', e.target.value)}
                         required
                         min="10"
                         step="10"
                         placeholder="10, 20, 30, ..."
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${isEventOpen ? 'bg-gray-100 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
                       />
                     </div>
                   </div>
