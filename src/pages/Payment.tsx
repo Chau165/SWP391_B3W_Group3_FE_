@@ -2,166 +2,223 @@
  * =============================================================================
  * PAYMENT PAGE - Trang thanh toán vé sự kiện qua VNPay
  * =============================================================================
- * 
- * Mô tả: Trang này hiển thị thông tin vé đã chọn và cho phép người dùng
- *        tiến hành thanh toán thông qua cổng VNPay.
- * 
+ *
+ * Mô tả:
+ * - Trang này nhận dữ liệu vé đã chọn từ trang trước (EventDetail / Dashboard)
+ * - Hiển thị thông tin vé cho user kiểm tra lại
+ * - Khi bấm “Thanh toán qua VNPay” → redirect sang Backend
+ * - Backend tạo URL VNPay (có checksum) → đưa user sang VNPay thanh toán
+ * - VNPay xong sẽ callback/redirect về trang success hoặc failed
+ *
  * Flow hoạt động:
- * 1. User chọn vé từ trang EventDetail → navigate đến /dashboard/payment với state
- * 2. Trang Payment hiển thị thông tin vé từ location.state
- * 3. User bấm "Thanh toán" → redirect sang Backend API
- * 4. Backend tạo URL VNPay với checksum → redirect user sang VNPay
- * 5. User thanh toán xong → VNPay callback về /payment-success hoặc /payment-failed
- * 
+1.Student vào EventDetail.tsx → chọn ghế trong SeatGrid
+2.Bấm mua/tiếp tục → navigate('/dashboard/payment', { state: {...} }) truyền eventId, categoryTicketId, seatIds, thông tin hiển thị
+3.Trang Payment.tsx đọc location.state → hiển thị xác nhận → bấm “Thanh toán”
+4.Payment tạo query params và redirect full page sang backend: /api/payment-ticket?...
+5.Backend validate seat/event/ticket + tạo VNPay payment URL + ký vnp_SecureHash → redirect user sang VNPay
+6.VNPay xử lý xong → redirect về backend ReturnURL/IPN → backend verify chữ ký + check vnp_ResponseCode
+Backend cập nhật đơn/vé → redirect về FE PaymentSuccess hoặc PaymentFailed (kèm query params như status, ticketIds, vnp_ResponseCode…)
+ *
  * Author: Group 3 - SWP391
  * =============================================================================
  */
 
 // ======================== IMPORTS ========================
+
+// Import hook điều hướng và đọc state của React Router
 import { useNavigate, useLocation } from 'react-router-dom'
-// useNavigate: Hook để điều hướng programmatically trong React Router
-// useLocation: Hook để lấy thông tin URL hiện tại và state được truyền từ trang trước
+// useNavigate: Hook để điều hướng programmatically (bằng code) trong React Router
+// useLocation: Hook để lấy thông tin URL hiện tại + state truyền từ trang trước
 
+// Import icon để trang đẹp hơn
 import { CreditCard, ArrowLeft } from 'lucide-react'
-// Icons từ thư viện Lucide React cho UI
+// CreditCard: icon thẻ/ thanh toán
+// ArrowLeft: icon mũi tên quay lại
 
+// Import Link để tạo link chuyển trang không reload
 import { Link } from 'react-router-dom'
-// Component Link để tạo navigation links
+// Link: chuyển route trong SPA (Single Page App) mà không reload toàn trang
 
+// Import AuthContext để lấy user đang đăng nhập
 import { useAuth } from '../contexts/AuthContext'
-// Custom hook để lấy thông tin user đang đăng nhập từ AuthContext
+// useAuth: custom hook lấy user (thông tin đăng nhập) từ context toàn app
 
 // ======================== TYPE DEFINITIONS ========================
+
 /**
  * PaymentState - Định nghĩa cấu trúc dữ liệu được truyền từ trang chọn vé
- * 
- * Dữ liệu này được truyền qua location.state khi navigate từ EventDetail
+ *
+ * Dữ liệu này được truyền qua location.state khi navigate từ EventDetail/Dashboard.
+ * Mục tiêu: giúp trang Payment biết user chọn vé nào, ghế nào, tiền bao nhiêu...
  */
 type PaymentState = {
-  eventId: number              // ID của sự kiện (bắt buộc)
-  categoryTicketId: number     // ID loại vé đã chọn (bắt buộc)
-  seatIds?: number[]           // Mảng ID các ghế đã chọn
-  eventTitle?: string          // Tên sự kiện (hiển thị UI)
-  ticketName?: string          // Tên loại vé (hiển thị UI)
-  ticketBreakdown?: Array<{    // Chi tiết từng loại vé (nếu chọn nhiều loại)
-    name: string               // Tên loại vé
-    count: number              // Số lượng
-    price: number              // Giá mỗi vé
+  eventId: number // ID của sự kiện (bắt buộc)
+  categoryTicketId: number // ID loại vé đã chọn (bắt buộc)
+
+  seatIds?: number[] // Mảng ID các ghế đã chọn (bắt buộc nếu vé có ghế)
+  eventTitle?: string // Tên sự kiện (để hiển thị)
+  ticketName?: string // Tên loại vé (để hiển thị)
+
+  ticketBreakdown?: Array<{
+    // Chi tiết từng loại vé nếu user chọn nhiều loại
+    name: string // tên loại vé
+    count: number // số lượng vé loại đó
+    price: number // giá 1 vé loại đó
   }>
-  seatCodes?: string[]         // Mã ghế (VD: "A1", "A2") - hiển thị UI
-  rowNo?: string               // Số hàng ghế
-  pricePerTicket?: number      // Giá mỗi vé
-  quantity?: number            // Số lượng vé
-  totalAmount?: number         // Tổng tiền thanh toán
+
+  seatCodes?: string[] // Mã ghế hiển thị (A1, A2, ...)
+  rowNo?: string // số hàng ghế hiển thị
+
+  pricePerTicket?: number // giá mỗi vé (để hiển thị)
+  quantity?: number // số lượng vé (để hiển thị)
+  totalAmount?: number // tổng tiền (để hiển thị)
 }
 
 // ======================== MAIN COMPONENT ========================
+
 export default function Payment() {
   // -------------------- HOOKS --------------------
-  const navigate = useNavigate()   // Hook điều hướng
-  const location = useLocation()   // Hook lấy location object (chứa state)
-  const { user } = useAuth()       // Lấy thông tin user từ AuthContext
+
+  // navigate dùng để chuyển trang bằng code (vd: về dashboard, sang login...)
+  const navigate = useNavigate()
+
+  // location chứa thông tin route hiện tại, bao gồm location.state từ trang trước
+  // nếu copy url trực tiếp thì location.state sẽ undefined nên frontend sẽ detect 
+  // thiếu dữ liệu và điều hướng về Dashboard để chọn lại vé.
+  const location = useLocation()
+
+  // lấy user từ AuthContext (user có thể null nếu chưa đăng nhập)
+  const { user } = useAuth()
 
   // -------------------- LẤY DỮ LIỆU TỪ STATE --------------------
+
   /**
-   * Lấy state được truyền từ trang trước (EventDetail)
-   * Nếu không có state (user truy cập trực tiếp URL) → state = {}
-   * Type assertion để TypeScript hiểu kiểu dữ liệu
+   * state: chính là dữ liệu vé được trang trước truyền sang.
+   *
+   * Nếu user truy cập thẳng URL /dashboard/payment (không đi từ flow chọn vé)
+   * thì location.state sẽ undefined → fallback {} để tránh crash.
+   *
+   * "as PaymentState": type assertion để TypeScript hiểu biến state theo kiểu PaymentState.
    */
   const state = (location.state || {}) as PaymentState
 
   // -------------------- XỬ LÝ THANH TOÁN --------------------
+
   /**
-   * handlePay - Xử lý khi user bấm nút "Thanh toán qua VNPay"
-   * 
-   * Flow:
-   * 1. Validate dữ liệu (eventId, categoryTicketId, seatIds)
-   * 2. Kiểm tra user đã đăng nhập chưa
-   * 3. Tạo URL với query params
-   * 4. Redirect toàn trang sang Backend API
+   * handlePay - chạy khi user bấm nút “Thanh toán qua VNPay”
+   *
+   * Nhiệm vụ:
+   * 1) Validate dữ liệu bắt buộc (eventId, categoryTicketId, seatIds)
+   * 2) Check login: lấy userId để backend biết ai đang mua
+   * 3) Tạo query params
+   * 4) Redirect full page sang backend endpoint tạo thanh toán
    */
   const handlePay = () => {
     // ===== BƯỚC 1: VALIDATE DỮ LIỆU VÉ =====
-    // Kiểm tra các thông tin bắt buộc có tồn tại không
-    if (!state.eventId || !state.categoryTicketId || !state.seatIds || state.seatIds.length === 0) {
+
+    // Nếu thiếu eventId/categoryTicketId hoặc không có seatIds → báo lỗi + về dashboard
+    // (tùy nghiệp vụ: nếu vé không có ghế thì seatIds có thể không bắt buộc, nhưng code hiện tại đang bắt buộc)
+    if (
+      !state.eventId ||
+      !state.categoryTicketId ||
+      !state.seatIds ||
+      state.seatIds.length === 0
+    ) {
+      // alert: popup thông báo nhanh cho user
       alert('Thiếu thông tin vé, vui lòng chọn lại vé từ Dashboard.')
-      navigate('/dashboard')  // Redirect về dashboard để chọn lại
-      return
+
+      // chuyển về /dashboard để user chọn lại vé
+      navigate('/dashboard')
+      return // dừng hàm tại đây
     }
 
     // ===== BƯỚC 2: KIỂM TRA ĐĂNG NHẬP =====
-    // Lấy userId từ user object (có thể là userId hoặc id tùy API response)
-    // Dùng nullish coalescing (??) để fallback
+
+    /**
+     * Lấy userId từ object user:
+     * - Một số backend trả user.userId
+     * - Một số backend trả user.id
+     * -> dùng ?? để fallback nếu userId undefined/null thì lấy id
+     */
     const userId = (user as any)?.userId ?? (user as any)?.id
+
+    // Nếu không có userId → user chưa login hoặc context chưa có user
     if (!userId) {
       alert('Bạn cần đăng nhập trước khi thanh toán.')
-      navigate('/login')  // Redirect về trang login
+
+      // điều hướng sang trang login
+      navigate('/login')
       return
     }
 
     // ===== BƯỚC 3: TẠO URL VỚI QUERY PARAMS =====
+
     /**
-     * URLSearchParams - API chuẩn của JavaScript để tạo query string
-     * Tự động encode các giá trị đặc biệt (space, &, =, ...)
+     * URLSearchParams:
+     * - Tạo query string chuẩn: key=value&key2=value2...
+     * - Tự encode các ký tự đặc biệt (space, &, =,...)
+     *
+     * Mục tiêu: gửi dữ liệu cần thiết cho backend tạo đơn thanh toán VNPay
      */
     const params = new URLSearchParams({
-      userId: String(userId),                    // ID người dùng
-      eventId: String(state.eventId),            // ID sự kiện
-      categoryTicketId: String(state.categoryTicketId),  // ID loại vé
-      seatIds: state.seatIds.join(','),          // Danh sách ID ghế, ngăn cách bởi dấu phẩy
+      userId: String(userId), // ép về string để URLSearchParams nhận
+      eventId: String(state.eventId),
+      categoryTicketId: String(state.categoryTicketId),
+
+      // seatIds: mảng id ghế → join thành chuỗi "1,2,3"
+      seatIds: state.seatIds.join(','),
     })
 
     /**
-     * URL API thanh toán
-     * 
-     * Lưu ý: Dùng /api/... thay vì URL đầy đủ
-     * → Vite proxy sẽ forward request đến Backend (localhost:8084)
-     * → Tránh lỗi CORS khi development
-     * 
-     * Config proxy trong vite.config.ts:
-     * '/api': { target: 'http://localhost:8084/FPTEventManagement', ... }
+     * paymentUrl:
+     * - Gọi vào endpoint backend (thông qua proxy /api)
+     * - Vite proxy sẽ chuyển /api/payment-ticket sang backend thật
+     * - Tránh CORS khi dev
      */
     const paymentUrl = `/api/payment-ticket?${params.toString()}`
 
     // ===== BƯỚC 4: REDIRECT SANG BACKEND =====
+
     /**
-     * window.location.replace() thay vì navigate()
-     * 
-     * Lý do: 
-     * - navigate() chỉ hoạt động trong SPA (Single Page App)
-     * - Backend sẽ redirect tiếp sang VNPay (external URL)
-     * - Cần full page navigation, không phải client-side routing
-     * 
-     * replace() vs assign():
-     * - replace(): Không lưu vào history (user không back được về trang này)
-     * - assign(): Lưu vào history (user có thể back)
-     * → Dùng replace() vì không muốn user back về trang payment sau khi thanh toán
+     * window.location.replace(paymentUrl):
+     * - Điều hướng “toàn trang” (full page navigation)
+     * - Cần vì backend sẽ redirect sang VNPay (domain ngoài)
+     *
+     * replace() khác assign():
+     * - replace(): không lưu history (user bấm back không quay lại payment dễ gây lỗi)
+     * - assign(): có lưu history
      */
     window.location.replace(paymentUrl)
   }
 
   // ======================== RENDER UI ========================
+
   return (
+    // Container căn giữa, giới hạn độ rộng
     <div className="max-w-2xl mx-auto">
       {/* -------------------- NÚT QUAY LẠI -------------------- */}
-      {/* Link component từ React Router - không reload trang */}
+      {/* Link về dashboard, chuyển trang trong SPA, không reload */}
       <Link
-        to="/dashboard"
+        to="/dashboard" // route dashboard
         className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
       >
+        {/* Icon mũi tên */}
         <ArrowLeft className="w-4 h-4 mr-2" />
+        {/* Text */}
         Quay lại Dashboard
       </Link>
 
       {/* -------------------- CARD CHÍNH -------------------- */}
+      {/* Card nền trắng + shadow */}
       <div className="bg-white rounded-lg shadow-md p-8">
-        
         {/* ========== HEADER ========== */}
         <div className="flex items-center mb-6">
-          {/* Icon thanh toán */}
+          {/* Icon tròn xanh nhạt */}
           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
             <CreditCard className="w-5 h-5 text-blue-600" />
           </div>
+
+          {/* Tiêu đề + mô tả */}
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Thanh toán vé</h1>
             <p className="text-sm text-gray-500">
@@ -171,18 +228,19 @@ export default function Payment() {
         </div>
 
         {/* ========== THÔNG TIN VÉ ========== */}
-        {/* Hiển thị chi tiết vé được truyền từ state */}
+        {/* Box hiển thị thông tin vé để user xác nhận trước khi trả tiền */}
         <div className="border rounded-lg p-4 mb-6 bg-gray-50">
           <h2 className="text-sm font-semibold text-gray-700 mb-2">
             Thông tin vé
           </h2>
+
+          {/* Danh sách thông tin vé */}
           <div className="space-y-1 text-sm text-gray-600">
-            
             {/* ----- Tên sự kiện ----- */}
             <p>
               Sự kiện:{' '}
               <span className="font-medium">
-                {/* Fallback nếu không có eventTitle */}
+                {/* Nếu state.eventTitle không có thì hiển thị fallback */}
                 {state.eventTitle || 'Sự kiện demo (mock)'}
               </span>
             </p>
@@ -191,18 +249,18 @@ export default function Payment() {
             {/* 
               Conditional rendering:
               - Nếu có ticketBreakdown (nhiều loại vé) → hiển thị từng loại
-              - Nếu chỉ có ticketName (1 loại vé) → hiển thị tên
-              - Không có gì → không render
+              - Nếu chỉ có ticketName → hiển thị tên 1 loại
+              - Nếu không có gì → không render
             */}
             {state.ticketBreakdown && state.ticketBreakdown.length > 0 ? (
               <p>
                 Loại vé:{' '}
                 <span className="font-medium">
-                  {/* Map qua từng loại vé và hiển thị: "Tên x Số lượng" */}
+                  {/* Duyệt qua từng loại vé và hiển thị: "Tên x Số lượng" */}
                   {state.ticketBreakdown.map((t, idx) => (
                     <span key={idx}>
                       {t.name} x{t.count}
-                      {/* Thêm dấu phẩy nếu không phải item cuối */}
+                      {/* Nếu chưa phải item cuối → thêm dấu phẩy */}
                       {idx < state.ticketBreakdown!.length - 1 ? ', ' : ''}
                     </span>
                   ))}
@@ -217,16 +275,25 @@ export default function Payment() {
 
             {/* ----- Vị trí ghế ----- */}
             {/* Chỉ hiển thị nếu có rowNo hoặc seatCodes */}
-            {(state.rowNo || (state.seatCodes && state.seatCodes.length > 0)) && (
+            {(state.rowNo ||
+              (state.seatCodes && state.seatCodes.length > 0)) && (
               <p>
                 Vị trí ghế:{' '}
                 <span className="font-medium">
-                  {/* Hiển thị hàng nếu có */}
+                  {/* Nếu có rowNo thì hiển thị "Hàng X" */}
                   {state.rowNo ? `Hàng ${state.rowNo}` : ''}
-                  {/* Thêm dấu phẩy nếu có cả hàng và ghế */}
-                  {state.rowNo && state.seatCodes && state.seatCodes.length > 0 ? ', ' : ''}
-                  {/* Hiển thị danh sách ghế, ngăn cách bởi dấu phẩy */}
-                  {state.seatCodes && state.seatCodes.length > 0 ? `Ghế ${state.seatCodes.join(', ')}` : ''}
+
+                  {/* Nếu có cả hàng và ghế thì thêm dấu phẩy ngăn cách */}
+                  {state.rowNo &&
+                  state.seatCodes &&
+                  state.seatCodes.length > 0
+                    ? ', '
+                    : ''}
+
+                  {/* Nếu có seatCodes thì hiển thị "Ghế A1, A2" */}
+                  {state.seatCodes && state.seatCodes.length > 0
+                    ? `Ghế ${state.seatCodes.join(', ')}`
+                    : ''}
                 </span>
               </p>
             )}
@@ -235,20 +302,24 @@ export default function Payment() {
             <p>
               Số tiền:{' '}
               <span className="font-semibold text-gray-900">
-                {/* 
-                  toLocaleString('vi-VN'): Format số theo định dạng Việt Nam
+                {/*
+                  toLocaleString('vi-VN'): format số theo chuẩn VN
                   Ví dụ: 1000000 → "1.000.000"
-                  Fallback: totalAmount → pricePerTicket → 0
+                  Fallback: ưu tiên totalAmount, nếu không có thì dùng pricePerTicket, nếu vẫn không có thì 0
                 */}
-                {(state.totalAmount || state.pricePerTicket || 0).toLocaleString('vi-VN')} đ
+                {(state.totalAmount || state.pricePerTicket || 0).toLocaleString(
+                  'vi-VN',
+                )}{' '}
+                đ
               </span>
             </p>
 
             {/* ----- Chi tiết tính tiền (nếu có) ----- */}
-            {/* Hiển thị: "Số lượng x Giá mỗi vé" */}
+            {/* Nếu có quantity và pricePerTicket → hiển thị "SL x giá" */}
             {state.quantity && state.pricePerTicket && (
               <p className="text-xs text-gray-500">
-                {state.quantity} x {(state.pricePerTicket).toLocaleString('vi-VN')} đ
+                {state.quantity} x {state.pricePerTicket.toLocaleString('vi-VN')}{' '}
+                đ
               </p>
             )}
           </div>
@@ -256,16 +327,17 @@ export default function Payment() {
 
         {/* ========== PHƯƠNG THỨC THANH TOÁN & NÚT BẤM ========== */}
         <div className="space-y-4">
-          
           {/* ----- Dropdown chọn phương thức ----- */}
           {/* 
-            Hiện tại chỉ có VNPay, nhưng dùng dropdown để dễ mở rộng
-            (thêm Momo, ZaloPay, ... sau này)
+            Hiện tại chỉ có VNPay
+            Dùng <select> để sau này dễ mở rộng (Momo, ZaloPay...)
           */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Phương thức thanh toán
             </label>
+
+            {/* select chỉ có 1 option VNPay */}
             <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
               <option>VNPay (Internet Banking / Thẻ)</option>
             </select>
@@ -273,8 +345,8 @@ export default function Payment() {
 
           {/* ----- Nút thanh toán ----- */}
           {/* 
-            type="button": Tránh submit form (nếu nằm trong form)
-            onClick={handlePay}: Gọi hàm xử lý thanh toán
+            type="button": tránh submit (nếu nằm trong form)
+            onClick={handlePay}: gọi hàm tạo URL và redirect sang backend
           */}
           <button
             type="button"
@@ -286,10 +358,10 @@ export default function Payment() {
           </button>
 
           {/* ----- Ghi chú ----- */}
-          {/* &quot; là HTML entity cho dấu ngoặc kép " (tránh lỗi JSX) */}
+          {/* &quot; là HTML entity cho dấu ngoặc kép " để JSX không lỗi */}
           <p className="text-xs text-gray-400 text-center">
-            Khi bấm &quot;Thanh toán qua VNPay&quot;, bạn sẽ được chuyển sang
-            cổng thanh toán VNPay để hoàn tất giao dịch.
+            Khi bấm &quot;Thanh toán qua VNPay&quot;, bạn sẽ được chuyển sang cổng
+            thanh toán VNPay để hoàn tất giao dịch.
           </p>
         </div>
       </div>

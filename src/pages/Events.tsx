@@ -1,50 +1,143 @@
+// Import Link để chuyển trang trong SPA, useNavigate để điều hướng bằng code
 import { Link, useNavigate } from 'react-router-dom'
+
+// Lấy thông tin user (role) từ AuthContext
 import { useAuth } from '../contexts/AuthContext'
-import { Calendar, MapPin, Users, Edit, Trash2, List, CalendarDays, Clock } from 'lucide-react'
+
+// Import icon dùng trong UI
+import {
+  Calendar,
+  MapPin,
+  Users,
+  Edit,
+  Trash2,
+  List,
+  CalendarDays,
+  Clock
+} from 'lucide-react'
+
+// date-fns: format ngày giờ + startOfDay + isAfter để phân loại sự kiện sắp tới/đã qua
 import { format, startOfDay, isAfter } from 'date-fns'
 import { vi } from 'date-fns/locale'
+
+// React hooks
 import { useState, useEffect } from 'react'
+
+// Toast để hiện thông báo
 import { useToast } from '../contexts/ToastContext'
+
+// Modal xác nhận (xóa/disable event)
 import ConfirmModal from '../components/common/ConfirmModal'
+
+// Calendar component hiển thị event theo lịch
 import { EventCalendar } from '../components/events/EventCalendar'
+
+// Modal xem chi tiết event
 import { EventDetailModal } from '../components/events/EventDetailModal'
+
+// Type định nghĩa dữ liệu event list và event detail
 import type { EventListItem, EventDetail } from '../types/event'
 
+// Kiểu hiển thị: list hoặc calendar
 type ViewMode = 'list' | 'calendar'
 
+/**
+ * =============================================================================
+ * EVENTS PAGE - Trang danh sách sự kiện (cho Organizer/Staff)
+ * =============================================================================
+ *
+ * Chức năng chính:
+ * - Load danh sách sự kiện từ BE (/api/events)
+ * - Chỉ hiển thị các event đang OPEN (đang mở)
+ * - Cho người dùng xem theo 2 chế độ:
+ *   1) Calendar view: hiển thị trên lịch
+ *   2) List view: hiển thị dạng card theo nhóm
+ *      - Sự kiện sắp tới (startTime > hôm nay)
+ *      - Sự kiện đã qua (startTime <= hôm nay)
+ *
+ * Quyền theo role:
+ * - Organizer: có nút "Tạo sự kiện mới", có thể bấm Edit sự kiện
+ * - Staff: có thể "vô hiệu hóa/đóng" sự kiện (disable) → gọi API /api/event/disable
+ *
+ * Luồng hoạt động:
+ * 1) Mount component → useEffect gọi fetchEvents()
+ * 2) fetchEvents gọi BE lấy danh sách openEvents + closedEvents (hoặc mảng legacy)
+ * 3) setEvents -> tính openEvents/upcoming/past để render
+ * 4) Click event -> gọi fetchEventDetail -> mở EventDetailModal
+ * 5) Staff bấm disable -> mở ConfirmModal -> confirm -> performDisableEvent() -> gọi API disable -> reload danh sách
+ * =============================================================================
+ */
 export default function Events() {
+  // Lấy user từ AuthContext
   const { user } = useAuth()
+
+  // Hook điều hướng
   const navigate = useNavigate()
+
+  // Role check
   const isOrganizer = user?.role === 'ORGANIZER'
   const isStaff = user?.role === 'STAFF'
+
+  // viewMode mặc định là "calendar"
   const [viewMode, setViewMode] = useState<ViewMode>('calendar')
+
+  // events: danh sách event list
   const [events, setEvents] = useState<EventListItem[]>([])
+
+  // loading và error để render UI trạng thái
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // selectedEvent: data chi tiết event để đưa vào modal
   const [selectedEvent, setSelectedEvent] = useState<EventDetail | null>(null)
+
+  // isModalOpen: điều khiển modal event detail
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // loadingDetail: trạng thái loading khi gọi API chi tiết event
   const [loadingDetail, setLoadingDetail] = useState(false)
+
+  // Toast để show thông báo
   const { showToast } = useToast()
+
+  // disablingIds: lưu danh sách eventId đang disable để disable nút (tránh double click)
   const [disablingIds, setDisablingIds] = useState<number[]>([])
+
+  // Confirm modal state
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmMessage, setConfirmMessage] = useState('')
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null)
 
+  /**
+   * useEffect chạy 1 lần khi component mount
+   * → gọi fetchEvents để lấy danh sách sự kiện
+   */
   useEffect(() => {
     fetchEvents()
   }, [])
 
+  /**
+   * fetchEvents:
+   * - Lấy token từ localStorage
+   * - Gọi API /api/events
+   * - BE có thể trả:
+   *   + mảng [] (legacy)
+   *   + object {openEvents:[], closedEvents:[]} (new)
+   * - Map về eventsArray rồi setEvents
+   */
   const fetchEvents = async () => {
     try {
       const token = localStorage.getItem('token')
+
       const response = await fetch('http://localhost:3000/api/events', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`
         }
       })
 
       if (response.ok) {
         const data = await response.json()
+
         // Handle both array (legacy) and object structure (new API)
         const eventsArray = Array.isArray(data)
           ? data
@@ -52,6 +145,7 @@ export default function Events() {
               ...(Array.isArray(data.openEvents) ? data.openEvents : []),
               ...(Array.isArray(data.closedEvents) ? data.closedEvents : [])
             ]
+
         setEvents(eventsArray)
       } else {
         throw new Error('Failed to fetch events')
@@ -64,15 +158,24 @@ export default function Events() {
     }
   }
 
+  /**
+   * fetchEventDetail:
+   * - Gọi API /api/events/detail?id=...
+   * - Thành công -> setSelectedEvent + open modal
+   */
   const fetchEventDetail = async (eventId: number) => {
     setLoadingDetail(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:3000/api/events/detail?id=${eventId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
+
+      const response = await fetch(
+        `http://localhost:3000/api/events/detail?id=${eventId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
         }
-      })
+      )
 
       if (response.ok) {
         const data = await response.json()
@@ -88,27 +191,45 @@ export default function Events() {
     }
   }
 
+  /**
+   * handleEventClick:
+   * - Khi user click event (ở calendar hoặc list)
+   * - Gọi fetchEventDetail để mở modal
+   */
   const handleEventClick = (event: EventListItem) => {
     fetchEventDetail(event.eventId)
   }
 
+  /**
+   * performDisableEvent:
+   * - Gọi API /api/event/disable để vô hiệu hóa (đóng) event
+   * - Có dùng disablingIds để chặn bấm nhiều lần
+   * - Sau khi disable thành công -> reload list bằng fetchEvents()
+   * - Có xử lý mã lỗi:
+   *   + 409: đã có vé -> không cho disable
+   *   + 404: event không tồn tại
+   */
   const performDisableEvent = async (eventId: number) => {
     try {
+      // Thêm eventId vào list disabling để UI disable nút
       setDisablingIds(prev => [...prev, eventId])
+
       const token = localStorage.getItem('token')
 
+      // Dùng application/x-www-form-urlencoded nên tạo URLSearchParams
       const body = new URLSearchParams()
       body.append('eventId', String(eventId))
 
       const res = await fetch('http://localhost:3000/api/event/disable', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: body.toString()
       })
 
+      // Thử đọc JSON response (nếu BE trả JSON)
       let payload: any = null
       try {
         payload = await res.json()
@@ -116,6 +237,7 @@ export default function Events() {
         payload = null
       }
 
+      // Xử lý status
       if (res.ok) {
         showToast('success', payload?.message || 'Vô hiệu hóa event thành công')
         await fetchEvents()
@@ -130,45 +252,70 @@ export default function Events() {
       console.error('Disable event error', error)
       showToast('error', error instanceof Error ? error.message : 'Lỗi hệ thống')
     } finally {
+      // Xóa eventId khỏi disablingIds khi xong
       setDisablingIds(prev => prev.filter(id => id !== eventId))
+
+      // Đóng confirm modal
       setConfirmOpen(false)
       setConfirmAction(null)
     }
   }
 
+  /**
+   * handleDisableEvent:
+   * - Khi staff bấm icon thùng rác
+   * - Mở ConfirmModal
+   * - Nếu confirm thì chạy performDisableEvent(eventId)
+   */
   const handleDisableEvent = (eventId: number) => {
     setConfirmMessage('Bạn có chắc chắn muốn vô hiệu hóa (đóng) sự kiện này?')
     setConfirmAction(() => () => performDisableEvent(eventId))
     setConfirmOpen(true)
   }
 
+  /**
+   * handleCloseModal:
+   * - Đóng EventDetailModal
+   */
   const handleCloseModal = () => {
     setIsModalOpen(false)
     setSelectedEvent(null)
   }
 
-  // ===== Filter only OPEN events and separate upcoming and past events =====
+  // ===== Filter chỉ lấy event OPEN và phân loại upcoming/past =====
   const now = new Date()
-  const todayStart = startOfDay(now)
+  const todayStart = startOfDay(now) // đầu ngày hôm nay 00:00
 
-  // Only show events with status OPEN
+  // Chỉ hiển thị event có status OPEN
   const openEvents = events.filter(e => e.status === 'OPEN')
 
+  // upcomingEvents: event startTime > hôm nay
   const upcomingEvents = openEvents
     .filter(e => isAfter(new Date(e.startTime), todayStart))
-    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+    .sort(
+      (a, b) =>
+        new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+    )
 
+  // pastEvents: event startTime <= hôm nay
   const pastEvents = openEvents
     .filter(e => !isAfter(new Date(e.startTime), todayStart))
-    .sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()) // Descending (most recent first)
+    .sort(
+      (a, b) =>
+        new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    ) // giảm dần: mới nhất lên trước
 
+  // ======================= RENDER UI =======================
   return (
     <div>
+      {/* Header + nút toggle view */}
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">Danh sách sự kiện</h1>
-          
-          {/* View Toggle */}
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+            Danh sách sự kiện
+          </h1>
+
+          {/* Toggle Calendar/List */}
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setViewMode('calendar')}
@@ -181,6 +328,7 @@ export default function Events() {
               <CalendarDays className="w-4 h-4" />
               Lịch
             </button>
+
             <button
               onClick={() => setViewMode('list')}
               className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -195,6 +343,7 @@ export default function Events() {
           </div>
         </div>
 
+        {/* Organizer có quyền tạo event */}
         {isOrganizer && (
           <Link
             to="/dashboard/events/create"
@@ -205,6 +354,7 @@ export default function Events() {
         )}
       </div>
 
+      {/* Loading / Error / Empty / Content */}
       {loading ? (
         <div className="bg-white rounded-lg shadow-md p-12 text-center">
           <p className="text-gray-500">Đang tải...</p>
@@ -219,28 +369,32 @@ export default function Events() {
         </div>
       ) : (
         <>
-          {/* Calendar View */}
+          {/* ===== Calendar View ===== */}
           {viewMode === 'calendar' && (
-            <EventCalendar 
-              events={openEvents} 
-              onEventClick={handleEventClick}
-            />
+            <EventCalendar events={openEvents} onEventClick={handleEventClick} />
           )}
 
-          {/* List View */}
+          {/* ===== List View ===== */}
           {viewMode === 'list' && (
             <div className="space-y-12">
-              {/* Upcoming Events */}
+              {/* ---------- Upcoming events ---------- */}
               <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Sự kiện sắp tới</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">
+                  Sự kiện sắp tới
+                </h2>
+
                 {upcomingEvents.length === 0 ? (
                   <div className="bg-white rounded-lg shadow-md p-12 text-center">
                     <p className="text-gray-500">Không có sự kiện sắp tới</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {upcomingEvents.map((event) => (
-                      <div key={event.eventId} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full">
+                    {upcomingEvents.map(event => (
+                      <div
+                        key={event.eventId}
+                        className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow flex flex-col h-full"
+                      >
+                        {/* Banner */}
                         {event.bannerUrl && (
                           <img
                             src={event.bannerUrl}
@@ -248,13 +402,18 @@ export default function Events() {
                             className="w-full h-48 object-cover"
                           />
                         )}
+
+                        {/* Content */}
                         <div className="p-6 flex flex-col flex-grow">
                           <div className="flex items-start justify-between mb-2">
                             <h3 className="text-xl font-semibold text-gray-900 flex-1 line-clamp-2 min-h-[3.5rem]">
                               {event.title}
                             </h3>
+
+                            {/* Organizer/Staff có icon thao tác */}
                             {(isOrganizer || isStaff) && (
                               <div className="flex space-x-2 ml-2 flex-shrink-0">
+                                {/* Organizer được edit */}
                                 {isOrganizer && (
                                   <Link
                                     to={`/dashboard/events/${event.eventId}/edit`}
@@ -264,10 +423,16 @@ export default function Events() {
                                     <Edit size={18} />
                                   </Link>
                                 )}
+
+                                {/* Staff được disable */}
                                 {isStaff && (
                                   <button
                                     onClick={() => handleDisableEvent(event.eventId)}
-                                    className={`p-1 ${disablingIds.includes(event.eventId) ? 'text-gray-400' : 'text-red-600 hover:bg-red-50'} rounded`}
+                                    className={`p-1 ${
+                                      disablingIds.includes(event.eventId)
+                                        ? 'text-gray-400'
+                                        : 'text-red-600 hover:bg-red-50'
+                                    } rounded`}
                                     title="Xóa"
                                     disabled={disablingIds.includes(event.eventId)}
                                   >
@@ -278,25 +443,34 @@ export default function Events() {
                             )}
                           </div>
 
+                          {/* Mô tả */}
                           <p className="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
                             {event.description}
                           </p>
 
+                          {/* Thông tin ngày/địa điểm/số chỗ */}
                           <div className="space-y-2 mb-4 flex-grow">
                             <div className="flex items-center text-sm text-gray-600">
                               <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-                              {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                              {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', {
+                                locale: vi
+                              })}
                             </div>
+
                             <div className="flex items-center text-sm text-gray-600">
                               <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                              <span className="line-clamp-1">{event.venueLocation || event.location || 'Chưa xác định'}</span>
+                              <span className="line-clamp-1">
+                                {event.venueLocation || event.location || 'Chưa xác định'}
+                              </span>
                             </div>
+
                             <div className="flex items-center text-sm text-gray-600">
                               <Users className="w-4 h-4 mr-2 flex-shrink-0" />
                               {event.maxSeats} chỗ
                             </div>
                           </div>
 
+                          {/* Footer: badge trạng thái + nút xem chi tiết */}
                           <div className="mt-auto">
                             <div className="flex items-center justify-between mb-4">
                               <span
@@ -308,7 +482,11 @@ export default function Events() {
                                     : 'bg-gray-100 text-gray-800'
                                 }`}
                               >
-                                {event.status === 'OPEN' ? 'Đang mở' : event.status === 'CLOSED' ? 'Đã đóng' : event.status}
+                                {event.status === 'OPEN'
+                                  ? 'Đang mở'
+                                  : event.status === 'CLOSED'
+                                  ? 'Đã đóng'
+                                  : event.status}
                               </span>
                             </div>
 
@@ -326,16 +504,20 @@ export default function Events() {
                 )}
               </div>
 
-              {/* Past Events */}
+              {/* ---------- Past events ---------- */}
               {pastEvents.length > 0 && (
                 <div>
                   <h2 className="text-2xl font-bold text-gray-500 mb-6 flex items-center">
                     <Clock className="w-6 h-6 mr-2" />
                     Sự kiện đã qua
                   </h2>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {pastEvents.map((event) => (
-                      <div key={event.eventId} className="bg-gray-50 rounded-lg shadow-sm overflow-hidden opacity-75 hover:opacity-90 transition-opacity flex flex-col h-full">
+                    {pastEvents.map(event => (
+                      <div
+                        key={event.eventId}
+                        className="bg-gray-50 rounded-lg shadow-sm overflow-hidden opacity-75 hover:opacity-90 transition-opacity flex flex-col h-full"
+                      >
                         {event.bannerUrl && (
                           <img
                             src={event.bannerUrl}
@@ -343,11 +525,14 @@ export default function Events() {
                             className="w-full h-48 object-cover"
                           />
                         )}
+
                         <div className="p-6 flex flex-col flex-grow">
                           <div className="flex items-start justify-between mb-2">
                             <h3 className="text-xl font-semibold text-gray-600 flex-1 line-clamp-2 min-h-[3.5rem]">
                               {event.title}
                             </h3>
+
+                            {/* Icon thao tác: vẫn render nhưng style nhạt */}
                             {(isOrganizer || isStaff) && (
                               <div className="flex space-x-2 ml-2 flex-shrink-0">
                                 {isOrganizer && (
@@ -362,7 +547,11 @@ export default function Events() {
                                 {isStaff && (
                                   <button
                                     onClick={() => handleDisableEvent(event.eventId)}
-                                    className={`p-1 ${disablingIds.includes(event.eventId) ? 'text-gray-400' : 'text-gray-400 hover:bg-gray-100'} rounded`}
+                                    className={`p-1 ${
+                                      disablingIds.includes(event.eventId)
+                                        ? 'text-gray-400'
+                                        : 'text-gray-400 hover:bg-gray-100'
+                                    } rounded`}
                                     title="Xóa"
                                     disabled={disablingIds.includes(event.eventId)}
                                   >
@@ -373,25 +562,34 @@ export default function Events() {
                             )}
                           </div>
 
+                          {/* Mô tả */}
                           <p className="text-gray-500 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
                             {event.description}
                           </p>
 
+                          {/* Info */}
                           <div className="space-y-2 mb-4 flex-grow">
                             <div className="flex items-center text-sm text-gray-500">
                               <Calendar className="w-4 h-4 mr-2 flex-shrink-0" />
-                              {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', { locale: vi })}
+                              {format(new Date(event.startTime), 'dd/MM/yyyy HH:mm', {
+                                locale: vi
+                              })}
                             </div>
+
                             <div className="flex items-center text-sm text-gray-500">
                               <MapPin className="w-4 h-4 mr-2 flex-shrink-0" />
-                              <span className="line-clamp-1">{event.venueLocation || event.location || 'Chưa xác định'}</span>
+                              <span className="line-clamp-1">
+                                {event.venueLocation || event.location || 'Chưa xác định'}
+                              </span>
                             </div>
+
                             <div className="flex items-center text-sm text-gray-500">
                               <Users className="w-4 h-4 mr-2 flex-shrink-0" />
                               {event.maxSeats} chỗ
                             </div>
                           </div>
 
+                          {/* Footer: đã kết thúc + disable nút xem chi tiết */}
                           <div className="mt-auto">
                             <div className="flex items-center justify-between mb-4">
                               <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-200 text-gray-600">
@@ -418,6 +616,7 @@ export default function Events() {
         </>
       )}
 
+      {/* Modal chi tiết event */}
       <EventDetailModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -426,14 +625,17 @@ export default function Events() {
         error={null}
         token={localStorage.getItem('token')}
       />
+
+      {/* Confirm modal xác nhận vô hiệu hóa event */}
       <ConfirmModal
         isOpen={confirmOpen}
         message={confirmMessage}
         onConfirm={() => confirmAction && confirmAction()}
-        onClose={() => { setConfirmOpen(false); setConfirmAction(null) }}
+        onClose={() => {
+          setConfirmOpen(false)
+          setConfirmAction(null)
+        }}
       />
     </div>
   )
 }
-
-

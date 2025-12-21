@@ -1,3 +1,4 @@
+//Note: Hình như không dùng trang này
 import { PlusCircle, Ticket } from 'lucide-react'
 
 type CategoryTicket = {

@@ -1,88 +1,175 @@
+// Import router hooks + Link
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { Upload, X, Plus, Trash2 } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
-import { uploadEventBanner, validateImageFile } from '../utils/imageUpload'
-import { useToast } from '../contexts/ToastContext'
+// useParams: lấy param trên URL (vd /dashboard/events/:id/edit -> lấy id)
+// useNavigate: điều hướng trang bằng code
+// Link: chuyển trang SPA không reload
 
+// Import icon để UI đẹp hơn
+import { Upload, X, Plus, Trash2 } from 'lucide-react'
+// Upload: icon upload ảnh
+// X: icon đóng / xóa ảnh
+// Plus: icon thêm vé
+// Trash2: icon xóa loại vé
+
+// React hooks
+import { useState, useEffect, useRef } from 'react'
+// useState: lưu state form (speaker, tickets, banner, loading...)
+// useEffect: gọi API load dữ liệu (expectedCapacity, event detail) khi mount
+// useRef: lưu biến không gây re-render (ở đây dùng để chặn spam toast warning)
+
+// Utils upload ảnh
+import { uploadEventBanner, validateImageFile } from '../utils/imageUpload'
+// validateImageFile: validate file ảnh (đuôi file/size/...)
+// uploadEventBanner: upload ảnh lên server/storage và trả về URL
+
+// Toast context để hiện thông báo dạng toast
+import { useToast } from '../contexts/ToastContext'
+// showToast(type, message): hiển thị toast success/error/warning
+
+// ======================= TYPES =======================
+
+// TicketType: chỉ cho phép 2 loại vé (VIP hoặc STANDARD)
 type TicketType = 'VIP' | 'STANDARD'
 
+// Ticket: cấu trúc dữ liệu 1 loại vé trong form edit
 type Ticket = {
-  name: TicketType
-  description: string
-  price: number
-  maxQuantity: number
-  status: 'ACTIVE'
+  name: TicketType          // VIP / STANDARD
+  description: string       // mô tả loại vé
+  price: number             // giá vé
+  maxQuantity: number       // số lượng tối đa (giới hạn bán)
+  status: 'ACTIVE'          // trạng thái vé (ở đây hardcode ACTIVE)
 }
 
 export default function EventEdit() {
+  // ======================= ROUTER + CONTEXT =======================
+
+  // Lấy id event từ URL param
   const { id } = useParams<{ id: string }>()
+
+  // navigate: chuyển trang bằng code
   const navigate = useNavigate()
+
+  // showToast: hiển thị toast message
   const { showToast } = useToast()
-  
+
+  // ======================= STATE CHUNG =======================
+
+  // loading: đang load dữ liệu (fetch detail event)
   const [loading, setLoading] = useState(false)
-   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // isSubmitting: trạng thái đang submit form update (disable nút)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // error: lỗi tổng (validate hoặc API fail)
   const [error, setError] = useState<string | null>(null)
+
+  // expectedCapacity: số lượng dự kiến từ “event request” (để giới hạn tổng số vé)
   const [expectedCapacity, setExpectedCapacity] = useState<number>(0)
+
+  // isEventOpen: event đang OPEN không (OPEN thì không cho chỉnh maxQuantity / add/remove loại vé)
   const [isEventOpen, setIsEventOpen] = useState<boolean>(false)
-  
+
+  // ======================= SPEAKER STATE =======================
+
+  // speaker: thông tin diễn giả nhập trên form
   const [speaker, setSpeaker] = useState({
     fullName: '',
     bio: '',
     email: '',
     phone: '',
-    avatarUrl: ''
+    avatarUrl: '',
   })
 
+  // ======================= TICKET STATE =======================
+
+  /**
+   * tickets: danh sách loại vé
+   * Default tạo sẵn 2 loại VIP + STANDARD để user nhập nhanh
+   */
   const [tickets, setTickets] = useState<Ticket[]>([
     { name: 'VIP', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' },
-    { name: 'STANDARD', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' }
+    { name: 'STANDARD', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' },
   ])
 
+  // ======================= BANNER IMAGE STATE =======================
+
+  // bannerUrl: URL banner hiện tại (từ API hoặc sau khi upload)
   const [bannerUrl, setBannerUrl] = useState('')
+
+  // selectedImage: file banner user vừa chọn (để upload)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
+
+  // imagePreview: preview base64 hoặc url để hiển thị ảnh trước khi submit
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+
+  // isDragging: UI trạng thái drag-drop banner
   const [isDragging, setIsDragging] = useState(false)
-  
+
+  // ======================= AVATAR IMAGE STATE =======================
+
+  // selectedAvatarImage: file avatar diễn giả user chọn
   const [selectedAvatarImage, setSelectedAvatarImage] = useState<File | null>(null)
+
+  // avatarPreview: preview ảnh avatar
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+
+  // isDraggingAvatar: UI trạng thái drag-drop avatar
   const [isDraggingAvatar, setIsDraggingAvatar] = useState(false)
-  
-  // Track if we've already shown the capacity warning
+
+  // ======================= REF CHẶN SPAM TOAST =======================
+
+  /**
+   * hasShownWarningRef:
+   * - dùng để chặn việc toast warning bị spam liên tục khi user nhập maxQuantity
+   * - ref không làm component re-render
+   */
   const hasShownWarningRef = useRef(false)
 
-  // Fetch event request to get expectedCapacity
+  // ======================= 1) FETCH EVENT REQUEST -> LẤY expectedCapacity =======================
+
+  /**
+   * useEffect này chạy khi có id
+   * Mục tiêu:
+   * - gọi API event request của organizer: /api/event-requests/my
+   * - tìm request nào tạo ra eventId này (createdEventId == id)
+   * - lấy expectedCapacity từ request để dùng validate số lượng vé
+   */
   useEffect(() => {
     const fetchEventRequest = async () => {
       try {
+        // lấy token để gọi API
         const token = localStorage.getItem('token')
-        
-        // Fetch all event requests to find the one matching this event ID
+
+        // gọi API lấy danh sách event requests của user hiện tại
         const response = await fetch('http://localhost:3000/api/event-requests/my', {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         })
 
         if (response.ok) {
           const data = await response.json()
-          
-          // Handle both array and object structure
-          let allRequests = []
+
+          // Vì BE có thể trả:
+          // - array thẳng
+          // - hoặc object {pending:[], approved:[], rejected:[]}
+          let allRequests: any[] = []
           if (Array.isArray(data)) {
             allRequests = data
           } else {
             allRequests = [
               ...(Array.isArray(data.pending) ? data.pending : []),
               ...(Array.isArray(data.approved) ? data.approved : []),
-              ...(Array.isArray(data.rejected) ? data.rejected : [])
+              ...(Array.isArray(data.rejected) ? data.rejected : []),
             ]
           }
-          
-          // Find the request that created this event
+
+          // tìm request tương ứng event này (createdEventId == id)
           const matchingRequest = allRequests.find(
-            (req: any) => req.createdEventId === parseInt(id!)
+            (req: any) => req.createdEventId === parseInt(id!),
           )
-          
+
+          // nếu tìm thấy và có expectedCapacity -> set state
           if (matchingRequest && matchingRequest.expectedCapacity) {
             setExpectedCapacity(matchingRequest.expectedCapacity)
             console.log('Expected capacity from request:', matchingRequest.expectedCapacity)
@@ -93,12 +180,21 @@ export default function EventEdit() {
       }
     }
 
+    // chỉ gọi nếu có id
     if (id) {
       fetchEventRequest()
     }
   }, [id])
 
-  // Fetch event details on mount to pre-fill the form (speaker, tickets, banner)
+  // ======================= 2) FETCH EVENT DETAILS -> PREFILL FORM =======================
+
+  /**
+   * useEffect này chạy khi có id:
+   * - setLoading(true)
+   * - gọi fetchEventDetails() để lấy banner/speaker/tickets nếu event OPEN
+   *
+   * Lưu ý: bạn có comment “Removed fetching event details...” nhưng thật ra vẫn đang gọi fetchEventDetails.
+   */
   useEffect(() => {
     if (id) {
       setLoading(true)
@@ -107,34 +203,49 @@ export default function EventEdit() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-   // Removed fetching event details to avoid viewing them on this page
-
+  /**
+   * fetchEventDetails:
+   * - gọi /api/events/detail?id=...
+   * - xác định status event (OPEN hay không)
+   * - Nếu OPEN:
+   *   + prefill banner, speaker, tickets
+   *   + lock maxQuantity (readOnly)
+   * - Nếu NOT OPEN:
+   *   + reset form về mặc định để organizer nhập lại
+   */
   const fetchEventDetails = async () => {
     try {
       const token = localStorage.getItem('token')
+
       const response = await fetch(`http://localhost:3000/api/events/detail?id=${id}`, {
         headers: {
-          'Authorization': `Bearer ${token}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       })
 
       if (response.ok) {
         const data = await response.json()
         console.log('Event details:', data)
 
-        // Determine status first
+        // xác định status event
         const statusStr = data.status ? String(data.status).toUpperCase() : ''
         const isOpen = statusStr === 'OPEN'
         setIsEventOpen(isOpen)
 
         if (isOpen) {
-          // Only pre-fill when event is OPEN: show existing speaker/tickets/banner and lock quantities
+          // ===== EVENT OPEN -> PREFILL =====
+
+          // Prefill banner
           if (data.bannerUrl) {
             setBannerUrl(data.bannerUrl)
             setImagePreview(data.bannerUrl)
           }
 
-          // Speaker: tolerant to different API shapes (array, nested, or top-level variants)
+          /**
+           * Prefill speaker:
+           * - tolerant nhiều kiểu data: data.speakers[0], data.speaker, hoặc nhiều field khác
+           * - mục tiêu: tránh BE đổi format làm FE crash
+           */
           const speakerFromApi = (() => {
             if (Array.isArray(data.speakers) && data.speakers.length > 0) return data.speakers[0]
             if (data.speaker) return data.speaker
@@ -148,45 +259,49 @@ export default function EventEdit() {
               phone:
                 data.speakerPhone || data.speaker_phone || data.phone || data.phoneNumber || data.mobile || data.contactPhone || data.contact_phone || '',
               avatarUrl:
-                data.speakerAvatarUrl || data.speaker_avatar_url || data.avatarUrl || data.speakerAvatar || data.speaker_avatar || ''
+                data.speakerAvatarUrl || data.speaker_avatar_url || data.avatarUrl || data.speakerAvatar || data.speaker_avatar || '',
             }
           })()
 
+          // setSpeaker vào state
           if (speakerFromApi) {
-            setSpeaker(prev => ({
+            setSpeaker((prev) => ({
               ...prev,
               fullName: speakerFromApi.fullName || '',
               bio: speakerFromApi.bio || '',
               email: speakerFromApi.email || '',
               phone: speakerFromApi.phone || '',
-              avatarUrl: speakerFromApi.avatarUrl || ''
+              avatarUrl: speakerFromApi.avatarUrl || '',
             }))
             if (speakerFromApi.avatarUrl) setAvatarPreview(speakerFromApi.avatarUrl)
           }
 
-          // Tickets: prefill price, description and maxQuantity
+          // Prefill tickets nếu API có data.tickets
           if (Array.isArray(data.tickets) && data.tickets.length > 0) {
             const mapped = data.tickets.map((tk: any) => ({
               name: tk.name || 'STANDARD',
               description: tk.description || '',
               price: Number(tk.price) || 0,
               maxQuantity: Number(tk.maxQuantity) || 0,
-              status: tk.status || 'ACTIVE'
+              status: tk.status || 'ACTIVE',
             }))
             setTickets(mapped)
           }
-
         } else {
-          // If event is CLOSED (or not OPEN), do NOT prefill speaker/tickets/banner
-          // Keep defaults so organizer can enter new speaker/ticket info and edit quantities
+          // ===== EVENT NOT OPEN -> RESET FORM =====
+
+          // reset banner
           setBannerUrl('')
           setImagePreview(null)
+
+          // reset speaker
           setSpeaker({ fullName: '', bio: '', email: '', phone: '', avatarUrl: '' })
           setAvatarPreview(null)
-          // Reset tickets to defaults (allow editing quantities)
+
+          // reset ticket defaults
           setTickets([
             { name: 'VIP', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' },
-            { name: 'STANDARD', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' }
+            { name: 'STANDARD', description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' },
           ])
         }
       } else {
@@ -194,62 +309,99 @@ export default function EventEdit() {
       }
     } catch (error) {
       console.error('Error fetching event:', error)
-      // Remove specific phrase; show a generic error or actual error message
       setError(error instanceof Error ? error.message : 'Đã xảy ra lỗi')
     } finally {
       setLoading(false)
     }
   }
-   // Removed: fetchEventDetails function to stop showing event details
 
+  // ======================= HANDLERS: SPEAKER =======================
+
+  // handleSpeakerChange: cập nhật từng field của speaker (fullName, bio, email, phone...)
   const handleSpeakerChange = (field: keyof typeof speaker, value: string) => {
-    setSpeaker(prev => ({ ...prev, [field]: value }))
+    setSpeaker((prev) => ({ ...prev, [field]: value }))
   }
 
-  const handleTicketChange = (index: number, field: keyof Ticket, value: string | number) => {
-    setTickets(prev => {
+  // ======================= HANDLERS: TICKET =======================
+
+  /**
+   * handleTicketChange:
+   * - cập nhật field của 1 ticket theo index
+   * - convert price/maxQuantity về number để tránh lỗi string concat
+   * - validate tổng maxQuantity không vượt expectedCapacity
+   */
+  const handleTicketChange = (
+    index: number,
+    field: keyof Ticket,
+    value: string | number,
+  ) => {
+    setTickets((prev) => {
       const updated = [...prev]
-      // Convert numeric fields to numbers to prevent string concatenation
-      const convertedValue = (field === 'price' || field === 'maxQuantity') 
-        ? (value === '' ? 0 : Number(value))
-        : value
+
+      // Nếu field là price/maxQuantity -> convert sang number
+      const convertedValue =
+        field === 'price' || field === 'maxQuantity'
+          ? value === ''
+            ? 0
+            : Number(value)
+          : value
+
+      // cập nhật ticket tại index
       updated[index] = { ...updated[index], [field]: convertedValue }
-      
-      // Validate total maxQuantity against expectedCapacity
+
+      /**
+       * Validate capacity:
+       * - chỉ validate khi user đang đổi maxQuantity và expectedCapacity > 0
+       * - tính tổng maxQuantity tất cả vé
+       * - nếu vượt expectedCapacity -> show toast cảnh báo và revert change
+       */
       if (field === 'maxQuantity' && expectedCapacity > 0) {
         let numValue = typeof value === 'string' ? parseInt(value, 10) : value
-        // Handle NaN or empty string
+
+        // nếu user nhập rỗng hoặc NaN -> coi như 0
         if (isNaN(numValue) || numValue < 0) {
           numValue = 0
         }
-        
-        // Calculate total maxQuantity including the new value
+
+        // tổng maxQuantity của tất cả vé
         const totalMaxQuantity = updated.reduce((sum, ticket) => {
           return sum + (Number(ticket.maxQuantity) || 0)
         }, 0)
-        
+
+        // nếu tổng vượt expectedCapacity -> cảnh báo và revert
         if (totalMaxQuantity > expectedCapacity) {
-          // Only show toast once per input session
           if (!hasShownWarningRef.current) {
-            showToast('warning', `Tổng số lượng tối đa của tất cả vé (${totalMaxQuantity}) không được vượt quá ${expectedCapacity} (số lượng dự kiến từ yêu cầu)`)
+            showToast(
+              'warning',
+              `Tổng số lượng tối đa của tất cả vé (${totalMaxQuantity}) không được vượt quá ${expectedCapacity} (số lượng dự kiến từ yêu cầu)`,
+            )
             hasShownWarningRef.current = true
-            // Reset after 2 seconds to allow showing again if needed
+
+            // reset flag sau 2s để cho phép cảnh báo lại nếu user nhập tiếp
             setTimeout(() => {
               hasShownWarningRef.current = false
             }, 2000)
           }
-          // Revert the change
+
+          // revert thay đổi: trả ticket về giá trị cũ
           updated[index] = prev[index]
           return updated
         }
       }
-      
+
       return updated
     })
   }
 
-  const MAX_TICKETS = 2 // Maximum number of ticket types allowed
+  // giới hạn số loại vé tối đa (ở đây chỉ cho 2 loại)
+  const MAX_TICKETS = 2
 
+  /**
+   * handleAddTicket:
+   * - thêm 1 loại vé mới
+   * - nếu event đang OPEN -> không cho thêm
+   * - nếu đã đủ MAX_TICKETS -> không cho thêm
+   */
   const handleAddTicket = () => {
     if (isEventOpen) {
       showToast('warning', 'Không thể thêm loại vé khi sự kiện đang mở')
@@ -259,16 +411,23 @@ export default function EventEdit() {
       showToast('warning', `Tối đa chỉ được thêm ${MAX_TICKETS} loại vé`)
       return
     }
+
+    // tạo tên vé dựa theo số lượng hiện tại (logic mock)
     const newTicketName: TicketType = tickets.length % 2 === 0 ? 'VIP' : 'STANDARD'
-    setTickets(prev => [...prev, {
-      name: newTicketName,
-      description: '',
-      price: 0,
-      maxQuantity: 0,
-      status: 'ACTIVE'
-    }])
+
+    // thêm ticket vào state
+    setTickets((prev) => [
+      ...prev,
+      { name: newTicketName, description: '', price: 0, maxQuantity: 0, status: 'ACTIVE' },
+    ])
   }
 
+  /**
+   * handleRemoveTicket:
+   * - xóa loại vé theo index
+   * - nếu event OPEN -> không cho xóa
+   * - phải còn ít nhất 1 ticket
+   */
   const handleRemoveTicket = (index: number) => {
     if (isEventOpen) {
       showToast('warning', 'Không thể xóa loại vé khi sự kiện đang mở')
@@ -278,17 +437,29 @@ export default function EventEdit() {
       setError('Phải có ít nhất 1 loại vé')
       return
     }
-    setTickets(prev => prev.filter((_, i) => i !== index))
+    setTickets((prev) => prev.filter((_, i) => i !== index))
   }
 
+  /**
+   * handleTicketTypeChange:
+   * - đổi name VIP/STANDARD cho ticket
+   */
   const handleTicketTypeChange = (index: number, newType: TicketType) => {
-    setTickets(prev => {
+    setTickets((prev) => {
       const updated = [...prev]
       updated[index] = { ...updated[index], name: newType }
       return updated
     })
   }
 
+  // ======================= HANDLERS: BANNER IMAGE (SELECT + DRAG DROP) =======================
+
+  /**
+   * handleImageSelect:
+   * - user chọn file từ input
+   * - validate file (định dạng/size)
+   * - lưu selectedImage và tạo preview bằng FileReader
+   */
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -302,6 +473,7 @@ export default function EventEdit() {
     setSelectedImage(file)
     setError(null)
 
+    // FileReader dùng để preview ảnh ngay trên UI (base64)
     const reader = new FileReader()
     reader.onloadend = () => {
       setImagePreview(reader.result as string)
@@ -309,6 +481,7 @@ export default function EventEdit() {
     reader.readAsDataURL(file)
   }
 
+  // handleRemoveImage: xóa banner đã chọn
   const handleRemoveImage = () => {
     setSelectedImage(null)
     setImagePreview(null)
@@ -316,18 +489,26 @@ export default function EventEdit() {
     setError(null)
   }
 
+  // handleDragOver: khi kéo file vào vùng drop -> set isDragging để đổi UI
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(true)
   }
 
+  // handleDragLeave: khi kéo ra khỏi vùng -> tắt isDragging
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDragging(false)
   }
 
+  /**
+   * handleDrop:
+   * - user thả file vào vùng drop
+   * - validate file
+   * - setSelectedImage + tạo preview
+   */
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
@@ -352,6 +533,9 @@ export default function EventEdit() {
     reader.readAsDataURL(file)
   }
 
+  // ======================= HANDLERS: AVATAR IMAGE (SELECT + DRAG DROP) =======================
+
+  // handleAvatarSelect: chọn ảnh avatar từ input, validate và preview
   const handleAvatarSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -372,25 +556,29 @@ export default function EventEdit() {
     reader.readAsDataURL(file)
   }
 
+  // handleRemoveAvatar: xóa avatar preview + reset avatarUrl trong speaker
   const handleRemoveAvatar = () => {
     setSelectedAvatarImage(null)
     setAvatarPreview(null)
-    setSpeaker(prev => ({ ...prev, avatarUrl: '' }))
+    setSpeaker((prev) => ({ ...prev, avatarUrl: '' }))
     setError(null)
   }
 
+  // Drag over avatar box
   const handleAvatarDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDraggingAvatar(true)
   }
 
+  // Drag leave avatar box
   const handleAvatarDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setIsDraggingAvatar(false)
   }
 
+  // Drop avatar image
   const handleAvatarDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
@@ -415,44 +603,71 @@ export default function EventEdit() {
     reader.readAsDataURL(file)
   }
 
+  // ======================= SUBMIT FORM (UPDATE EVENT) =======================
+
+  /**
+   * handleSubmit:
+   * - chạy khi bấm “Cập nhật sự kiện”
+   * Flow:
+   * 1) validate maxQuantity bội số 10
+   * 2) validate tổng maxQuantity <= expectedCapacity
+   * 3) upload banner nếu có file
+   * 4) upload avatar nếu có file
+   * 5) build requestBody
+   * 6) call POST /api/events/update-details
+   * 7) success -> toast + về danh sách events
+   */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     setError(null)
 
     try {
-      // Validate all maxQuantity values are multiples of 10
+      // ===== VALIDATE: maxQuantity phải là bội số 10 =====
       for (const ticket of tickets) {
         if (ticket.maxQuantity % 10 !== 0) {
-          setError(`Số lượng tối đa của vé ${ticket.name} phải là bội số của 10 (10, 20, 30, ...)`)
-          setIsSubmitting(false)
-          return
-        }
-      }
-      
-      // Validate total maxQuantity doesn't exceed expectedCapacity
-      if (expectedCapacity > 0) {
-        const totalMaxQuantity = tickets.reduce((sum, ticket) => sum + ticket.maxQuantity, 0)
-        if (totalMaxQuantity > expectedCapacity) {
-          setError(`Tổng số lượng tối đa của tất cả vé (${totalMaxQuantity}) không được vượt quá số lượng dự kiến (${expectedCapacity})`)
+          setError(
+            `Số lượng tối đa của vé ${ticket.name} phải là bội số của 10 (10, 20, 30, ...)`,
+          )
           setIsSubmitting(false)
           return
         }
       }
 
-      // Upload banner image if selected
+      // ===== VALIDATE: tổng số vé không vượt expectedCapacity =====
+      if (expectedCapacity > 0) {
+        const totalMaxQuantity = tickets.reduce((sum, ticket) => sum + ticket.maxQuantity, 0)
+        if (totalMaxQuantity > expectedCapacity) {
+          setError(
+            `Tổng số lượng tối đa của tất cả vé (${totalMaxQuantity}) không được vượt quá số lượng dự kiến (${expectedCapacity})`,
+          )
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      // ===== UPLOAD BANNER nếu user chọn ảnh mới =====
       let finalBannerUrl = bannerUrl
       if (selectedImage) {
         finalBannerUrl = await uploadEventBanner(selectedImage)
       }
 
-      // Upload avatar image if selected
+      // ===== UPLOAD AVATAR nếu user chọn ảnh avatar mới =====
       let finalAvatarUrl = speaker.avatarUrl
       if (selectedAvatarImage) {
         finalAvatarUrl = await uploadEventBanner(selectedAvatarImage)
       }
 
+      // lấy token từ localStorage để gọi API update
       const token = localStorage.getItem('token')
+
+      /**
+       * requestBody:
+       * - eventId
+       * - speaker info
+       * - tickets array (convert number)
+       * - bannerUrl sau upload
+       */
       const requestBody = {
         eventId: parseInt(id!),
         speaker: {
@@ -460,29 +675,31 @@ export default function EventEdit() {
           bio: speaker.bio,
           email: speaker.email,
           phone: speaker.phone,
-          avatarUrl: finalAvatarUrl
+          avatarUrl: finalAvatarUrl,
         },
-        tickets: tickets.map(ticket => ({
+        tickets: tickets.map((ticket) => ({
           name: ticket.name,
           description: ticket.description,
           price: Number(ticket.price),
           maxQuantity: Number(ticket.maxQuantity),
-          status: 'ACTIVE'
+          status: 'ACTIVE',
         })),
-        bannerUrl: finalBannerUrl
+        bannerUrl: finalBannerUrl,
       }
 
       console.log('Updating event with:', requestBody)
 
+      // ===== CALL API UPDATE =====
       const response = await fetch(`http://localhost:3000/api/events/update-details`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
       })
 
+      // ===== HANDLE RESPONSE =====
       if (response.ok) {
         showToast('success', 'Cập nhật sự kiện thành công!')
         navigate('/dashboard/events')
@@ -500,6 +717,8 @@ export default function EventEdit() {
     }
   }
 
+  // ======================= UI LOADING =======================
+  // Nếu đang loading (đang fetch detail) -> hiển thị loading screen
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -508,6 +727,7 @@ export default function EventEdit() {
     )
   }
 
+  // ======================= RENDER FORM UI =======================
   return (
     <div className="flex justify-center">
       <div className="bg-white rounded-lg shadow-md p-8 max-w-4xl w-full">
@@ -515,19 +735,22 @@ export default function EventEdit() {
           Cập nhật thông tin sự kiện
         </h1>
 
-        {/* Informational banner when event is CLOSED */}
+        {/* Banner thông tin: nếu event không OPEN thì không prefill data */}
         {!isEventOpen && (
           <div className="mb-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-yellow-800">
             Sự kiện hiện đang không ở trạng thái mở (CLOSED). Form sẽ không tự động điền dữ liệu hiện tại — vui lòng nhập thông tin mới. Bạn vẫn có thể chỉnh sửa số lượng vé.
           </div>
         )}
 
+        {/* Form submit sẽ chạy handleSubmit */}
         <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Speaker Information */}
+          {/* ================= SPEAKER INFO ================= */}
           <div className="border-b pb-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Thông tin diễn giả</h2>
-            
+
+            {/* Input speaker fields */}
             <div className="space-y-4">
+              {/* fullName */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Họ và tên *
@@ -541,6 +764,7 @@ export default function EventEdit() {
                 />
               </div>
 
+              {/* bio */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Tiểu sử *
@@ -554,6 +778,7 @@ export default function EventEdit() {
                 />
               </div>
 
+              {/* email + phone */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -582,20 +807,20 @@ export default function EventEdit() {
                 </div>
               </div>
 
+              {/* avatar upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Ảnh đại diện diễn giả (tùy chọn)
                 </label>
-                
+
+                {/* Nếu chưa có preview -> show drop zone */}
                 {!avatarPreview ? (
-                  <div 
+                  <div
                     onDragOver={handleAvatarDragOver}
                     onDragLeave={handleAvatarDragLeave}
                     onDrop={handleAvatarDrop}
                     className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-                      isDraggingAvatar 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-300 hover:border-blue-400'
+                      isDraggingAvatar ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
                     }`}
                   >
                     <input
@@ -612,6 +837,7 @@ export default function EventEdit() {
                     </label>
                   </div>
                 ) : (
+                  // Nếu đã có preview -> show ảnh + nút xóa
                   <div className="relative">
                     <img
                       src={avatarPreview}
@@ -631,10 +857,12 @@ export default function EventEdit() {
             </div>
           </div>
 
-          {/* Tickets */}
+          {/* ================= TICKETS INFO ================= */}
           <div className="border-b pb-6">
-                <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-gray-900">Thông tin vé</h2>
+
+              {/* Button thêm loại vé */}
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -649,14 +877,20 @@ export default function EventEdit() {
                   <Plus className="w-4 h-4 mr-2" />
                   Thêm loại vé ({tickets.length}/{MAX_TICKETS})
                 </button>
+
+                {/* Thông báo nếu event OPEN */}
                 {isEventOpen && (
-                  <span className="text-sm text-red-600">Sự kiện đang mở — không thể thay đổi số lượng vé</span>
+                  <span className="text-sm text-red-600">
+                    Sự kiện đang mở — không thể thay đổi số lượng vé
+                  </span>
                 )}
               </div>
             </div>
-            
+
+            {/* Render từng ticket */}
             {tickets.map((ticket, index) => (
               <div key={index} className="mb-6 p-4 border border-gray-200 rounded-lg relative">
+                {/* Ticket type + nút xóa */}
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -671,21 +905,28 @@ export default function EventEdit() {
                       <option value="STANDARD">STANDARD</option>
                     </select>
                   </div>
-                  
+
+                  {/* Nút xóa ticket (chỉ show nếu >1 ticket) */}
                   {tickets.length > 1 && (
                     <button
                       type="button"
                       onClick={() => handleRemoveTicket(index)}
                       disabled={isEventOpen}
-                      className={`p-2 rounded-lg transition-colors ${isEventOpen ? 'text-gray-400 hover:bg-transparent cursor-not-allowed' : 'text-red-600 hover:bg-red-50'}`}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isEventOpen
+                          ? 'text-gray-400 hover:bg-transparent cursor-not-allowed'
+                          : 'text-red-600 hover:bg-red-50'
+                      }`}
                       title={isEventOpen ? 'Không thể xóa khi sự kiện đang mở' : 'Xóa loại vé'}
                     >
                       <Trash2 className="w-5 h-5" />
                     </button>
                   )}
                 </div>
-                
+
+                {/* Ticket fields */}
                 <div className="space-y-4">
+                  {/* description */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Mô tả *
@@ -699,7 +940,9 @@ export default function EventEdit() {
                     />
                   </div>
 
+                  {/* price + maxQuantity */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* price */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Giá (VNĐ) *
@@ -714,6 +957,7 @@ export default function EventEdit() {
                       />
                     </div>
 
+                    {/* maxQuantity */}
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Số lượng tối đa * (bội số của 10)
@@ -721,14 +965,17 @@ export default function EventEdit() {
                       <input
                         type="number"
                         value={ticket.maxQuantity}
-                        // Make maxQuantity read-only when event is open
-                        readOnly={isEventOpen}
+                        readOnly={isEventOpen} // event OPEN thì khóa maxQuantity
                         onChange={(e) => handleTicketChange(index, 'maxQuantity', e.target.value)}
                         required
                         min="10"
                         step="10"
                         placeholder="10, 20, 30, ..."
-                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${isEventOpen ? 'bg-gray-100 cursor-not-allowed' : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'}`}
+                        className={`w-full px-4 py-2 border border-gray-300 rounded-lg ${
+                          isEventOpen
+                            ? 'bg-gray-100 cursor-not-allowed'
+                            : 'focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+                        }`}
                       />
                     </div>
                   </div>
@@ -737,21 +984,20 @@ export default function EventEdit() {
             ))}
           </div>
 
-          {/* Banner Image */}
+          {/* ================= BANNER UPLOAD ================= */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Banner sự kiện *
             </label>
-            
+
+            {/* Nếu chưa có preview -> show dropzone */}
             {!imagePreview ? (
-              <div 
+              <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                  isDragging 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:border-blue-400'
+                  isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-blue-400'
                 }`}
               >
                 <input
@@ -768,12 +1014,9 @@ export default function EventEdit() {
                 </label>
               </div>
             ) : (
+              // Nếu có preview -> show ảnh + nút xóa
               <div className="relative">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="w-full h-64 object-cover rounded-lg"
-                />
+                <img src={imagePreview} alt="Preview" className="w-full h-64 object-cover rounded-lg" />
                 <button
                   type="button"
                   onClick={handleRemoveImage}
@@ -785,19 +1028,24 @@ export default function EventEdit() {
             )}
           </div>
 
+          {/* ================= ERROR BOX ================= */}
           {error && (
             <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
               <p className="text-sm text-red-600">{error}</p>
             </div>
           )}
 
+          {/* ================= BUTTONS ================= */}
           <div className="flex justify-end gap-4 pt-4">
+            {/* Cancel -> về danh sách event */}
             <Link
               to="/dashboard/events"
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               Hủy
             </Link>
+
+            {/* Submit update */}
             <button
               type="submit"
               disabled={isSubmitting}

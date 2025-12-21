@@ -7,12 +7,14 @@ import fptLogo from '../assets/fpt-logo.png'
 import fptCampus from '../assets/dai-hoc-fpt-tp-hcm-1.jpeg'
 
 // Use proxy to avoid CORS issues in development
+// Cấu hình proxy API để tránh lỗi Cross-Origin khi chạy localhost
 const API_URL = '/api'
 
 // Configure axios defaults
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 axios.defaults.headers.common['Accept'] = 'application/json'
 
+// Định nghĩa cấu trúc dữ liệu cho Form đăng ký
 interface FormData {
   email: string
   password: string
@@ -27,12 +29,14 @@ interface FormData {
 // 2. Chọn reCAPTCHA v2 (checkbox)
 // 3. Thêm domain: localhost và domain production
 // 4. Copy Site Key và dán vào đây
-const RECAPTCHA_SITE_KEY = '6LeVFSUsAAAAAMas_aThh1RZtxiGjWgRquLuAoTU' // Test key - THAY BẰNG SITE KEY THẬT
-const USE_REAL_RECAPTCHA = true // Đổi thành true khi đã có Site Key thật
+const RECAPTCHA_SITE_KEY = '6LcRNiUsAAAAAOTRRAnoQAHXQNfIFx5v49ZAbnsK' // Test key - THAY BẰNG SITE KEY THẬT
+// Cờ bật/tắt chế độ kiểm tra Captcha thật (True = Bắt buộc tích Captcha)
+const USE_REAL_RECAPTCHA = true 
 
 export default function Register() {
-  const [isOtpSent, setIsOtpSent] = useState(false)
-  const [otpCountdown, setOtpCountdown] = useState(0)
+  // CÁC STATE QUẢN LÝ TRẠNG THÁI FORM
+  const [isOtpSent, setIsOtpSent] = useState(false) // Kiểm tra xem OTP đã được gửi đi chưa
+  const [otpCountdown, setOtpCountdown] = useState(0) // Đếm ngược thời gian chờ gửi lại OTP
   const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
@@ -41,27 +45,33 @@ export default function Register() {
     phone: '',
     otp: ''
   })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
-  const recaptchaRef = useRef<ReCAPTCHA>(null)
+  const [error, setError] = useState('') // Lưu lỗi hiển thị
+  const [loading, setLoading] = useState(false) // Trạng thái loading
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null) // Token Captcha
+  const recaptchaRef = useRef<ReCAPTCHA>(null) // Ref điều khiển Widget Captcha
   const navigate = useNavigate()
 
   // Countdown timer for resend OTP
+  // LOGIC ĐẾM NGƯỢC: Chạy mỗi khi otpCountdown thay đổi
+  // useEffect này thiết lập một bộ đếm thời gian (timer) để giảm giá trị otpCountdown đi 1 mỗi giây
+  // useEffect là hook cho phép thực thi các hiệu ứng phụ trong component
   useEffect(() => {
     let timer: number
     if (otpCountdown > 0) {
+      // Giảm 1 giây sau mỗi 1000ms
       timer = window.setTimeout(() => setOtpCountdown(otpCountdown - 1), 1000)
     }
-    return () => clearTimeout(timer)
+    return () => clearTimeout(timer) // Dọn dẹp timer khi component unmount
   }, [otpCountdown])
 
+  // Cập nhật state khi nhập liệu
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     setError('')
   }
 
+  // Validate khớp mật khẩu
   const validateForm = (): boolean => {
     if (formData.password !== formData.confirmPassword) {
       setError('Mật khẩu xác nhận không khớp!')
@@ -70,6 +80,7 @@ export default function Register() {
     return true
   }
 
+  // HÀM XỬ LÝ BƯỚC 1: GỬI YÊU CẦU LẤY MÃ OTP
   const handleSendOtp = async () => {
     // Validate reCAPTCHA nếu dùng mode thật
     if (USE_REAL_RECAPTCHA && !recaptchaToken) {
@@ -77,7 +88,7 @@ export default function Register() {
       return
     }
 
-    // Validate required fields
+    // Validate các trường bắt buộc trước khi gọi API
     if (!formData.fullName || formData.fullName.trim() === '') {
       setError('Vui lòng nhập họ và tên!')
       return
@@ -112,6 +123,7 @@ export default function Register() {
         phone: formData.phone
       })
       
+      // Gọi API backend để gửi OTP về email
       const response = await axios.post(`${API_URL}/register/send-otp`, {
         fullName: formData.fullName,
         email: formData.email,
@@ -120,18 +132,19 @@ export default function Register() {
         recaptchaToken: USE_REAL_RECAPTCHA ? recaptchaToken : 'TEST_BYPASS'
       })
 
-      console.log('Send OTP Response:', response.data)
+      console.log('Send OTP Response status:', response.status)
+      console.log('Send OTP Response data:', response.data)
 
-      // Enable OTP field if request is successful (status 200)
+      // Enable OTP field and start countdown when backend accepted the request
+      const ok = (response.status >= 200 && response.status < 300) || response.data?.status === 'success' || response.data?.success === true
       setIsOtpSent(true)
-      setOtpCountdown(60) // Start 60 second countdown
+      setOtpCountdown(60)
       setError('')
-      
-      if (response.data.status === 'success' || response.status === 200) {
+
+      if (ok) {
         alert('Mã OTP đã được gửi đến email của bạn!')
       } else {
-        // Still enable OTP field but show warning
-        const warningMsg = response.data.message || 'Vui lòng kiểm tra email để lấy mã OTP'
+        const warningMsg = response.data?.message || 'Vui lòng kiểm tra email để lấy mã OTP'
         alert(warningMsg)
       }
     } catch (err: any) {
@@ -147,6 +160,7 @@ export default function Register() {
     }
   }
 
+  // HÀM GỬI LẠI OTP (Nếu người dùng không nhận được mã lần đầu)
   const handleResendOtp = async () => {
     setLoading(true)
     try {
@@ -156,15 +170,17 @@ export default function Register() {
         email: formData.email
       })
 
-      console.log('Resend OTP Response:', response.data)
+      console.log('Resend OTP Response status:', response.status)
+      console.log('Resend OTP Response data:', response.data)
 
-      setOtpCountdown(60) // Restart countdown
+      setOtpCountdown(60)
       setError('')
-      
-      if (response.data.status === 'success' || response.status === 200) {
-        showToast('success', 'Mã OTP mới đã được gửi lại!')
+
+      const ok = (response.status >= 200 && response.status < 300) || response.data?.status === 'success' || response.data?.success === true
+      if (ok) {
+        alert('Mã OTP mới đã được gửi lại!')
       } else {
-        showToast('info', 'Mã OTP đã được gửi lại. Vui lòng kiểm tra email.')
+        alert(response.data?.message || 'Mã OTP đã được gửi lại. Vui lòng kiểm tra email.')
       }
     } catch (err: any) {
       console.error('Resend OTP Error:', err)
@@ -177,24 +193,28 @@ export default function Register() {
     }
   }
 
+  // HÀM XỬ LÝ BƯỚC 2: XÁC THỰC OTP VÀ HOÀN TẤT ĐĂNG KÝ
   const handleRegister = async () => {
     try {
+      // Gọi API verify OTP
       const response = await axios.post(`${API_URL}/register/verify-otp`, {
         email: formData.email,
-        otp: formData.otp,
+        otp: formData.otp, // Mã người dùng nhập
         fullName: formData.fullName,
         phone: formData.phone,
         password: formData.password,
         recaptchaToken: USE_REAL_RECAPTCHA ? recaptchaToken : 'TEST_BYPASS'
       })
 
-      console.log('Register Response:', response.data)
+      console.log('Register Response status:', response.status)
+      console.log('Register Response data:', response.data)
 
-      if (response.data.status === 'success') {
-        showToast('success', 'Đăng ký thành công! Vui lòng đăng nhập.')
+      const ok = (response.status >= 200 && response.status < 300) || response.data?.status === 'success' || response.data?.success === true
+      if (ok) {
+        alert('Đăng ký thành công! Vui lòng đăng nhập.')
         navigate('/login')
       } else {
-        setError(response.data.message || 'Đăng ký thất bại')
+        setError(response.data?.message || 'Đăng ký thất bại')
       }
     } catch (err: any) {
       console.error('Register Error:', err)
@@ -204,6 +224,7 @@ export default function Register() {
     }
   }
 
+  // SỰ KIỆN SUBMIT FORM TỔNG
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -213,19 +234,20 @@ export default function Register() {
     setError('')
     
     try {
-      await handleRegister()
+      await handleRegister() // Gọi hàm xác thực OTP
     } catch (err: any) {
       console.error('Register Error:', err)
       
       let errorMessage = 'Có lỗi xảy ra. Vui lòng thử lại!'
       
+      // Xử lý các loại lỗi kết nối / backend
       if (err.message && err.message.includes('Backend đã chạy')) {
         errorMessage = err.message
       } else if (err.response) {
         // Server responded with error
         errorMessage = err.response.data?.message || `Lỗi ${err.response.status}: ${err.response.statusText}`
       } else if (err.request) {
-        // Request made but no response
+        // Request made but no response (Lỗi mạng hoặc Server down)
         errorMessage = 'Không thể kết nối đến server!\n\n⚠️ Vui lòng kiểm tra:\n1. Backend đã chạy chưa? (http://localhost:8080)\n2. CORS đã được cấu hình trong backend chưa?'
       }
       
@@ -245,7 +267,7 @@ export default function Register() {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Overlay */}
+      {/* Overlay: Lớp phủ đen mờ */}
       <div className="absolute inset-0 bg-black/40"></div>
       
       <div className="max-w-md w-full bg-white/95 backdrop-blur-md rounded-3xl shadow-2xl p-8 border-2 border-white/50 relative z-10">
@@ -262,12 +284,14 @@ export default function Register() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Hiển thị lỗi chung */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               {error}
             </div>
           )}
 
+          {/* Input Họ tên */}
           <div>
             <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
               Họ và tên
@@ -284,6 +308,7 @@ export default function Register() {
             />
           </div>
 
+          {/* Input Số điện thoại */}
           <div>
             <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
               Số điện thoại
@@ -300,6 +325,7 @@ export default function Register() {
             />
           </div>
 
+          {/* Input Email */}
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
               Email
@@ -316,6 +342,7 @@ export default function Register() {
             />
           </div>
 
+          {/* Input Mật khẩu */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
               Mật khẩu
@@ -332,6 +359,7 @@ export default function Register() {
             />
           </div>
 
+          {/* Input Xác nhận mật khẩu */}
           <div>
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
               Xác nhận mật khẩu
@@ -348,6 +376,7 @@ export default function Register() {
             />
           </div>
 
+          {/* KHU VỰC NHẬP OTP (Kết hợp Input + Nút Gửi) */}
           <div>
             <label htmlFor="otp" className="block text-sm font-medium text-gray-700 mb-2">
               Mã OTP
@@ -361,17 +390,20 @@ export default function Register() {
                 onChange={handleInputChange}
                 placeholder="Nhập mã OTP"
                 required
-                disabled={!isOtpSent}
+                // Chỉ cho phép nhập khi đã gửi OTP thành công
+                disabled={!isOtpSent} 
                 className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100"
               />
+              {/* Nút Gửi OTP / Gửi lại */}
               <button
                 type="button"
                 onClick={isOtpSent ? handleResendOtp : handleSendOtp}
+                // Disable nếu chưa nhập email, hoặc đang đếm ngược, hoặc đang loading
                 disabled={!formData.email || (isOtpSent && otpCountdown > 0) || loading}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed whitespace-nowrap text-sm"
               >
                 {isOtpSent 
-                  ? (otpCountdown > 0 ? `${otpCountdown}s` : 'Gửi lại')
+                  ? (otpCountdown > 0 ? `${otpCountdown}s` : 'Gửi lại') // Hiển thị số giây đếm ngược
                   : 'Gửi OTP'
                 }
               </button>
@@ -383,6 +415,7 @@ export default function Register() {
             )}
           </div>
 
+          {/* Widget Captcha */}
           <div className="flex justify-center">
             <ReCAPTCHA
               ref={recaptchaRef}
@@ -395,8 +428,10 @@ export default function Register() {
             />
           </div>
 
+          {/* Nút Đăng ký (Final Submit) */}
           <button
             type="submit"
+            // Chỉ bấm được khi đã Gửi OTP và không đang loading
             disabled={loading || !isOtpSent}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 font-medium transition-colors disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
@@ -413,6 +448,7 @@ export default function Register() {
             )}
           </button>
 
+          {/* Link chuyển sang trang Đăng nhập */}
           <div className="text-center">
             <p className="text-sm text-gray-600">
               Đã có tài khoản?{' '}
