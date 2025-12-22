@@ -6,7 +6,7 @@ import fptLogo from '../assets/fpt-logo.png'
 import fptLogoLoading from '../assets/fpt-logo-loading.png'
 
 export default function Layout() {
-  const { user, logout, refreshUser } = useAuth()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -22,13 +22,6 @@ export default function Layout() {
     return () => clearTimeout(timer)
   }, [location.pathname])
 
-  // If user lands on payment success (or redirected), refresh profile to update wallet
-  useEffect(() => {
-    if (location.pathname.includes('payment-success')) {
-      try { refreshUser?.() } catch (_) {}
-    }
-  }, [location.pathname, refreshUser])
-
   const handleLogout = () => {
     logout()
     navigate('/')
@@ -36,6 +29,7 @@ export default function Layout() {
 
   const isOrganizer = user?.role === 'ORGANIZER'
   const isStaff = user?.role === 'STAFF'
+  const isAdmin = user?.role === 'ADMIN'
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-amber-50 to-orange-100">
@@ -163,6 +157,18 @@ export default function Layout() {
                   </Link>
                 </>
               )}
+              {isAdmin && (
+                <Link
+                  to="/dashboard/manage"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    location.pathname.startsWith('/dashboard/manage')
+                      ? 'bg-orange-100 text-orange-600'
+                      : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                  }`}
+                >
+                  Quản lý người dùng
+                </Link>
+              )}
             </nav>
 
             {/* User Info */}
@@ -184,6 +190,8 @@ export default function Layout() {
               >
                 <LogOut size={20} />
               </button>
+
+ 
             </div>
 
             {/* Mobile menu button */}
@@ -285,6 +293,15 @@ export default function Layout() {
                       Yêu cầu hoàn tiền
                     </Link>
                 </>
+              )}
+              {isAdmin && (
+                <Link
+                  to="/dashboard/manage"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Quản lý người dùng
+                </Link>
               )}
               <div className="px-3 py-2 border-t mt-2">
                 <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-gradient-to-r from-orange-50 to-amber-50 rounded-lg border border-orange-200">

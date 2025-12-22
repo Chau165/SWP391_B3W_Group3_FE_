@@ -4,7 +4,7 @@ import { useToast } from '../contexts/ToastContext'
 import { UserPlus, Edit, Trash2, Search, Filter } from 'lucide-react'
 import ConfirmModal from '../components/common/ConfirmModal'
 import UserFormModal from '../components/admin/UserFormModal'
-import type { User, CreateUserRequest, UpdateUserRequest } from '../types/user.ts'
+import type { User, CreateUserRequest, UpdateUserRequest } from '../types/user'
 
 export default function AdminDashboard() {
   const { user } = useAuth()
