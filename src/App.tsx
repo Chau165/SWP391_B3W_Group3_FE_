@@ -13,6 +13,7 @@ import TicketDetail from './pages/TicketDetail.tsx'
 import CheckIn from './pages/CheckIn.tsx'
 import SeatManagement from './pages/SeatManagement.tsx'
 import Reports from './pages/Reports.tsx'
+import ReportRequests from './pages/ReportRequests.tsx'
 import MyBills from './pages/MyBills.tsx'
 import BillDetail from './pages/BillDetail.tsx'
 import EventRequestCreate from './pages/EventRequestCreate.tsx'
@@ -32,6 +33,12 @@ import ImageUploadTest from './pages/ImageUploadTest.tsx'
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth()
   return user ? <>{children}</> : <Navigate to="/guest" />
+}
+
+function StaffRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  // Only allow role 'STAFF'
+  return user && user.role === 'STAFF' ? <>{children}</> : <Navigate to="/dashboard" />
 }
 
 function AppRoutes() {
@@ -73,6 +80,11 @@ function AppRoutes() {
         <Route path="category-tickets" element={<CategoryTickets />} />
         <Route path="organizers" element={<Organizers />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="report-requests" element={
+          <StaffRoute>
+            <ReportRequests />
+          </StaffRoute>
+        } />
         <Route path="system-config" element={<SystemConfig />} />
         <Route path="image-upload-test" element={<ImageUploadTest />} />
       </Route>

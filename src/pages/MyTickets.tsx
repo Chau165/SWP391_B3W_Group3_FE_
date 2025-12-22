@@ -16,7 +16,11 @@ import {
   XCircle,              // Icon trạng thái lỗi/chưa checkin/hết hạn
   LogOut,               // Icon check-out
   Clock,                // Icon thời gian (checkin/checkout time)
+  FileX,                // Icon hủy vé
 } from 'lucide-react'
+
+// Import component modal hủy vé
+import CancelTicketModal from '../components/common/CancelTicketModal'
 
 // Import format ngày giờ từ date-fns
 import { format } from 'date-fns'
@@ -100,6 +104,12 @@ export default function MyTickets() {
   // qrTicket: vé đang được mở popup QR (null = không mở popup)
   const [qrTicket, setQrTicket] = useState<MyTicket | null>(null)
 
+  // cancelTicket: vé đang được yêu cầu hủy (null = không mở modal)
+  const [cancelTicket, setCancelTicket] = useState<MyTicket | null>(null)
+
+  // pendingReports: danh sách ticketId đang có report pending
+  const [pendingReports, setPendingReports] = useState<Set<number>>(new Set())
+
   /**
    * useEffect chạy 1 lần khi component mount (dependency [])
    * Nhiệm vụ:
@@ -173,6 +183,42 @@ export default function MyTickets() {
     fetchTickets()
   }, [])
 
+  // Fetch pending ticket IDs for the logged-in student so we disable duplicate reports
+  useEffect(() => {
+    const fetchPendingIds = async () => {
+      const jwt = localStorage.getItem('token')
+      if (!jwt) return
+
+      try {
+        const res = await fetch('/api/student/reports/pending-ticket-ids', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${jwt}`,
+          },
+        })
+
+        if (!res.ok) return
+
+        const data = await res.json()
+        // Expect { status: 'success', data: [ids] }
+        const ids = Array.isArray(data) ? data : data?.data ?? []
+
+        const pendingSet = new Set<number>()
+        for (const id of ids) {
+          pendingSet.add(Number(id))
+        }
+
+        setPendingReports(pendingSet)
+      } catch (err) {
+        console.error('Error fetching pending ticket ids:', err)
+      }
+    }
+
+    fetchPendingIds()
+  }, [])
+
   // ===================== Helpers map field =====================
   // Vì BE có thể trả field khác nhau, ta viết helper để lấy value hợp lệ nhất
 
@@ -226,6 +272,16 @@ export default function MyTickets() {
 
   // Lấy thời gian check-out (fallback giữa checkOutTime và checkoutTime)
   const getCheckOutTime = (t: MyTicket) => t.checkOutTime || t.checkoutTime || null
+
+  // Xử lý khi hủy vé thành công
+  const handleCancelSuccess = () => {
+    if (cancelTicket) {
+      const ticketId = cancelTicket.ticketId ?? cancelTicket.id
+      if (ticketId) {
+        setPendingReports((prev) => new Set(prev).add(ticketId))
+      }
+    }
+  }
 
   /**
    * formatTime:
@@ -327,6 +383,7 @@ export default function MyTickets() {
               const imageUrl = getImageUrl(t)
               const checkedIn = isCheckedIn(t)
               const status = getStatus(t)
+              const isPendingRefund = pendingReports.has(id)
 
               // startText: text hiển thị thời gian bắt đầu event
               // default nếu chưa có data hoặc data lỗi
@@ -403,27 +460,34 @@ export default function MyTickets() {
                     <div className="mb-4">
                       <p className="text-sm text-gray-600 mb-2">Trạng thái:</p>
 
-                      {/* Badge màu theo trạng thái */}
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                          status === 'EXPIRED'
-                            ? 'bg-red-100 text-red-800'
+                      {/* Nếu đang chờ hoàn tiền */}
+                      {isPendingRefund ? (
+                        <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800">
+                          Đang chờ hoàn tiền
+                        </span>
+                      ) : (
+                        /* Badge màu theo trạng thái */
+                        <span
+                          className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                            status === 'EXPIRED'
+                              ? 'bg-red-100 text-red-800'
+                              : status === 'CHECKED_OUT'
+                              ? 'bg-purple-100 text-purple-800'
+                              : status === 'CHECKED_IN'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {/* Text trạng thái hiển thị tiếng Việt */}
+                          {status === 'EXPIRED'
+                            ? 'Hết hạn'
                             : status === 'CHECKED_OUT'
-                            ? 'bg-purple-100 text-purple-800'
+                            ? 'Đã check-out'
                             : status === 'CHECKED_IN'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {/* Text trạng thái hiển thị tiếng Việt */}
-                        {status === 'EXPIRED'
-                          ? 'Hết hạn'
-                          : status === 'CHECKED_OUT'
-                          ? 'Đã check-out'
-                          : status === 'CHECKED_IN'
-                          ? 'Đã check-in'
-                          : 'Chưa check-in'}
-                      </span>
+                            ? 'Đã check-in'
+                            : 'Chưa check-in'}
+                        </span>
+                      )}
 
                       {/* Nếu trạng thái CHECKED_IN và có checkInTime -> hiển thị thời điểm */}
                       {status === 'CHECKED_IN' && getCheckInTime(t) && (
@@ -442,20 +506,47 @@ export default function MyTickets() {
                       )}
                     </div>
 
-                    {/* Nút xem QR: bấm sẽ mở popup bằng cách setQrTicket(t) */}
-                    {/* Không navigate sang trang khác */}
-                    <button
-                      type="button"
-                      onClick={() => setQrTicket(t)}
-                      className="block w-full text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Xem vé QR
-                    </button>
+                    {/* Các nút action */}
+                    <div className="flex gap-2">
+                      {/* Nút Báo Cáo Lỗi - chỉ hiển thị cho vé CHECKED_IN */}
+                      {!isPendingRefund && status === 'CHECKED_IN' && (
+                        <button
+                          type="button"
+                          onClick={() => setCancelTicket(t)}
+                          className="flex-1 flex items-center justify-center gap-2 bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition-colors"
+                        >
+                          <FileX size={18} />
+                          Báo Cáo Lỗi
+                        </button>
+                      )}
+                      
+                      {/* Nút xem QR: bấm sẽ mở popup bằng cách setQrTicket(t) */}
+                      {/* Không navigate sang trang khác */}
+                      <button
+                        type="button"
+                        onClick={() => setQrTicket(t)}
+                        className={`${
+                          !isPendingRefund && status === 'CHECKED_IN' ? 'flex-1' : 'w-full'
+                        } text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors`}
+                      >
+                        Xem vé QR
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
             })}
           </div>
+
+          {/* ===================== MODAL HỦY VÉ ===================== */}
+          {cancelTicket && (
+            <CancelTicketModal
+              ticketId={cancelTicket.ticketId ?? cancelTicket.id ?? 0}
+              eventName={getEventTitle(cancelTicket)}
+              onClose={() => setCancelTicket(null)}
+              onSuccess={handleCancelSuccess}
+            />
+          )}
 
           {/* ===================== POPUP QR CODE ===================== */}
           {/* Nếu qrTicket != null thì mở popup overlay */}
