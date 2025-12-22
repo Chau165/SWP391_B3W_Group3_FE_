@@ -333,7 +333,7 @@ export default function MyTickets() {
         <div className="bg-white rounded-lg shadow-md p-8 text-center">
           <p className="text-red-500 mb-4">{error}</p>
           <Link
-            to="/events"
+            to="/dashboard/events"
             className="inline-block text-blue-600 hover:text-blue-700"
           >
             Xem các sự kiện sắp tới →
@@ -358,7 +358,7 @@ export default function MyTickets() {
           <TicketIcon className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <p className="text-gray-500 text-lg">Bạn chưa có vé nào</p>
           <Link
-            to="/events"
+            to="/dashboard/events"
             className="mt-4 inline-block text-blue-600 hover:text-blue-700"
           >
             Xem các sự kiện sắp tới →
