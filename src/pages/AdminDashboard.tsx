@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '../../contexts/AuthContext'
-import { useToast } from '../../contexts/ToastContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useToast } from '../contexts/ToastContext'
 import { UserPlus, Edit, Trash2, Search, Filter } from 'lucide-react'
-import ConfirmModal from '../../components/common/ConfirmModal'
-import UserFormModal from '../../components/admin/UserFormModal'
-import type { User, CreateUserRequest, UpdateUserRequest } from '../../types/user'
+import ConfirmModal from '../components/common/ConfirmModal'
+import UserFormModal from '../components/admin/UserFormModal'
+import type { User, CreateUserRequest, UpdateUserRequest } from '../types/user'
 
-export default function AdminUsers() {
+export default function AdminDashboard() {
   const { user } = useAuth()
   const { showToast } = useToast()
   const isDev = import.meta.env.DEV
@@ -62,7 +62,6 @@ export default function AdminUsers() {
 
   useEffect(() => {
     if (isDev) {
-      // Use mock data in dev so Admin can preview UI without backend
       setUsers(mockUsers)
       setLoading(false)
       return

@@ -25,7 +25,7 @@ import Speakers from './pages/Speakers.tsx'
 import Venues from './pages/Venues.tsx'
 import SystemConfig from './pages/SystemConfig.tsx'
 import CategoryTickets from './pages/CategoryTickets.tsx'
-import Users from './pages/admin/Users.tsx'
+import AdminDashboard from './pages/AdminDashboard.tsx'
 import Layout from './components/Layout.tsx'
 import GuestLanding from './pages/GuestLanding.tsx'
 import ImageUploadTest from './pages/ImageUploadTest.tsx'
@@ -79,7 +79,7 @@ function AppRoutes() {
         <Route path="venues" element={<Venues />} />
         <Route path="category-tickets" element={<CategoryTickets />} />
         {/* organizers route removed */}
-        <Route path="manage" element={<Users />} />
+        <Route path="manage" element={<AdminDashboard />} />
         <Route path="reports" element={<Reports />} />
         <Route path="report-requests" element={
           <StaffRoute>
