@@ -10,6 +10,7 @@ import { CheckCircle2 } from 'lucide-react'
 // - useEffect: chạy side-effect khi component mount / khi dependency đổi
 // - useState: lưu state (ở đây là ticketIds lấy từ query string)
 import { useEffect, useState } from 'react'
+import { useAuth } from '../contexts/AuthContext'
 
 // Component trang PaymentSuccess: hiển thị khi thanh toán VNPay thành công
 export default function PaymentSuccess() {
@@ -18,6 +19,9 @@ export default function PaymentSuccess() {
 
   // navigate dùng để chuyển trang (VD: /my-tickets, /, /payment-failed)
   const navigate = useNavigate()
+
+  // Auth context: access user and setUser so we can update wallet immediately
+  const { user, setUser } = useAuth()
 
   // State lưu mã vé trả về từ backend qua query params
   // ticketIds có thể là chuỗi "1,2,3" hoặc "ABC123", hoặc null nếu không có
@@ -71,7 +75,21 @@ export default function PaymentSuccess() {
 
     // Cập nhật state để UI hiển thị "Mã vé: ..."
     setTicketIds(ticketsParam)
-  }, [location.search, navigate]) // dependency: chạy lại khi query string hoặc navigate thay đổi
+
+    // If backend included newWallet in the redirect query, update local user/wallet immediately
+    const newWalletParam = params.get('newWallet')
+    if (newWalletParam) {
+      const w = Number(newWalletParam)
+      if (!Number.isNaN(w)) {
+        setUser((prev) => {
+          if (!prev) return prev
+          const next = { ...prev, wallet: w }
+          try { localStorage.setItem('user', JSON.stringify(next)) } catch (_) {}
+          return next
+        })
+      }
+    }
+  }, [location.search, navigate, setUser]) // dependency: chạy lại khi query string hoặc navigate thay đổi
 
   /**
    * ===================== RENDER UI =====================

@@ -16,10 +16,12 @@ export interface User {
 interface AuthContextType {
   user: User | null
   token: string | null
-  setUser: (user: User | null) => void
+  // allow functional updates: setUser(prev => ...)
+  setUser: React.Dispatch<React.SetStateAction<User | null>>
   setToken: (token: string | null) => void
   login: (email: string, password: string, role: UserRole) => void
   logout: () => void
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -60,8 +62,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null)
   }
 
+  // Refresh user profile from backend and update context + localStorage
+  const refreshUser = async () => {
+    try {
+      const savedToken = token ?? localStorage.getItem('token')
+      if (!savedToken) return
+
+      // Default endpoint - change if your backend uses a different path
+      const res = await fetch('/api/auth/me', {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${savedToken}`,
+        },
+        cache: 'no-store',
+        credentials: 'include',
+      })
+
+      if (!res.ok) return
+
+      const data = await res.json()
+      // Some backends return { user: { ... } }
+      const userObj = data?.user ?? data
+      if (userObj) {
+        setUser(userObj)
+        try { localStorage.setItem('user', JSON.stringify(userObj)) } catch (_) {}
+      }
+    } catch (err) {
+      console.error('refreshUser error:', err)
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, token, setUser, setToken, login, logout }}>
+    <AuthContext.Provider value={{ user, token, setUser, setToken, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

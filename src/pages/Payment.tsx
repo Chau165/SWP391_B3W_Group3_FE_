@@ -27,6 +27,7 @@ Backend cập nhật đơn/vé → redirect về FE PaymentSuccess hoặc Paymen
 
 // Import hook điều hướng và đọc state của React Router
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 // useNavigate: Hook để điều hướng programmatically (bằng code) trong React Router
 // useLocation: Hook để lấy thông tin URL hiện tại + state truyền từ trang trước
 
@@ -87,8 +88,8 @@ export default function Payment() {
   // thiếu dữ liệu và điều hướng về Dashboard để chọn lại vé.
   const location = useLocation()
 
-  // lấy user từ AuthContext (user có thể null nếu chưa đăng nhập)
-  const { user } = useAuth()
+  // lấy user + token từ AuthContext (user/token có thể null nếu chưa đăng nhập)
+  const { user, token } = useAuth()
 
   // -------------------- LẤY DỮ LIỆU TỪ STATE --------------------
 
@@ -101,6 +102,9 @@ export default function Payment() {
    * "as PaymentState": type assertion để TypeScript hiểu biến state theo kiểu PaymentState.
    */
   const state = (location.state || {}) as PaymentState
+
+  // payment method: 'vnpay' or 'wallet'
+  const [paymentMethod, setPaymentMethod] = useState<'vnpay' | 'wallet'>('vnpay')
 
   // -------------------- XỬ LÝ THANH TOÁN --------------------
 
@@ -189,6 +193,66 @@ export default function Payment() {
      * - assign(): có lưu history
      */
     window.location.replace(paymentUrl)
+  }
+
+  // Handle wallet payment: submit a POST form so browser will follow backend redirect
+  const handleWalletPay = () => {
+    if (
+      !state.eventId ||
+      !state.categoryTicketId ||
+      !state.seatIds ||
+      state.seatIds.length === 0
+    ) {
+      alert('Thiếu thông tin vé, vui lòng chọn lại vé từ Dashboard.')
+      navigate('/dashboard')
+      return
+    }
+
+    const userId = (user as any)?.userId ?? (user as any)?.id
+    if (!userId) {
+      alert('Bạn cần đăng nhập trước khi thanh toán.')
+      navigate('/login')
+      return
+    }
+
+    const params: Record<string, string> = {
+      userId: String(userId),
+      eventId: String(state.eventId),
+      seatIds: state.seatIds.join(','),
+    }
+
+    // create form and submit (full page POST) so backend can redirect to FE success
+    const form = document.createElement('form')
+    form.method = 'POST'
+    form.action = '/api/wallet/pay-ticket'
+    form.style.display = 'none'
+
+    Object.entries(params).forEach(([k, v]) => {
+      const input = document.createElement('input')
+      input.type = 'hidden'
+      input.name = k
+      input.value = v
+      form.appendChild(input)
+    })
+
+    // include token (if available) so backend filters that expect a token can validate
+    const savedToken = token ?? localStorage.getItem('token')
+    if (savedToken) {
+      const t1 = document.createElement('input')
+      t1.type = 'hidden'
+      t1.name = 'token'
+      t1.value = savedToken
+      form.appendChild(t1)
+
+      const t2 = document.createElement('input')
+      t2.type = 'hidden'
+      t2.name = 'authorization'
+      t2.value = `Bearer ${savedToken}`
+      form.appendChild(t2)
+    }
+
+    document.body.appendChild(form)
+    form.submit()
   }
 
   // ======================== RENDER UI ========================
@@ -337,9 +401,14 @@ export default function Payment() {
               Phương thức thanh toán
             </label>
 
-            {/* select chỉ có 1 option VNPay */}
-            <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-              <option>VNPay (Internet Banking / Thẻ)</option>
+            {/* select cho phép chọn VNPay hoặc Wallet */}
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value as any)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="vnpay">VNPay (Internet Banking / Thẻ)</option>
+              <option value="wallet">Wallet (Ví nội bộ)</option>
             </select>
           </div>
 
@@ -350,18 +419,21 @@ export default function Payment() {
           */}
           <button
             type="button"
-            onClick={handlePay}
+            onClick={paymentMethod === 'vnpay' ? handlePay : handleWalletPay}
             className="w-full inline-flex items-center justify-center px-4 py-3 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700"
           >
             <CreditCard className="w-5 h-5 mr-2" />
-            Thanh toán qua VNPay
+            {paymentMethod === 'vnpay' ? 'Thanh toán qua VNPay' : 'Thanh toán bằng Wallet'}
           </button>
 
           {/* ----- Ghi chú ----- */}
           {/* &quot; là HTML entity cho dấu ngoặc kép " để JSX không lỗi */}
           <p className="text-xs text-gray-400 text-center">
-            Khi bấm &quot;Thanh toán qua VNPay&quot;, bạn sẽ được chuyển sang cổng
-            thanh toán VNPay để hoàn tất giao dịch.
+            {paymentMethod === 'vnpay' ? (
+              <>Khi bấm "Thanh toán qua VNPay", bạn sẽ được chuyển sang cổng thanh toán VNPay để hoàn tất giao dịch.</>
+            ) : (
+              <>Khi bấm "Thanh toán bằng Wallet", hệ thống sẽ trừ tiền trong ví và chuyển bạn tới trang xác nhận.</>
+            )}
           </p>
         </div>
       </div>
