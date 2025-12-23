@@ -41,6 +41,28 @@ export default function EventDetail() {
    */
   const { user, token } = useAuth()
 
+  // DEBUG: Log user object
+  console.log('EventDetail - user from useAuth:', user)
+
+  // Fallback: Nếu user?.role undefined, thử lấy từ localStorage
+  const getUserRole = (): string | undefined => {
+    if (user?.role) return user.role
+    try {
+      const savedUser = localStorage.getItem('user')
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser)
+        console.log('EventDetail - parsed user from localStorage:', parsed)
+        return parsed?.role
+      }
+    } catch (e) {
+      console.error('Error parsing user from localStorage:', e)
+    }
+    return undefined
+  }
+
+  const currentUserRole = getUserRole()
+  console.log('EventDetail - currentUserRole:', currentUserRole)
+
   // Hook điều hướng trang
   const navigate = useNavigate()
 
@@ -158,7 +180,7 @@ export default function EventDetail() {
           loading={loading}             // đang tải event -> modal có thể show skeleton/spinner
           error={error}                 // lỗi -> modal hiển thị message lỗi
           token={token}                 // token để modal gọi API khác nếu cần (đặt vé, load ghế...)
-          userRole={user?.role}         // truyền role để modal quyết định hiển thị chức năng theo quyền
+          userRole={currentUserRole}    // truyền role để modal quyết định hiển thị chức năng theo quyền
           onEdit={isOrganizer ? handleEdit : undefined} 
           // nếu organizer/staff -> truyền handleEdit (cho phép nút Edit)
           // nếu student -> undefined (không có quyền edit)

@@ -624,6 +624,7 @@ export default function Events() {
         loading={loadingDetail}
         error={null}
         token={localStorage.getItem('token')}
+        userRole={user?.role}        // truyền role để ẩn chọn ghế cho ORGANIZER/STAFF/ADMIN
       />
 
       {/* Confirm modal xác nhận vô hiệu hóa event */}

@@ -99,6 +99,18 @@ export default function Layout() {
                   </Link>
                 </>
               )}
+              {isOrganizer && (
+                <Link
+                  to="/dashboard/reports"
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    location.pathname === '/dashboard/reports'
+                      ? 'bg-orange-100 text-orange-600'
+                      : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                  }`}
+                >
+                  Báo cáo
+                </Link>
+              )}
               {!isOrganizer && !isStaff && (
                 <>
                   <Link
@@ -126,26 +138,6 @@ export default function Layout() {
               {isStaff && (
                 <>
                   <Link
-                    to="/dashboard/venues"
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      location.pathname === '/dashboard/venues'
-                        ? 'bg-orange-100 text-orange-600'
-                        : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
-                    }`}
-                  >
-                    Địa điểm
-                  </Link>
-                  <Link
-                    to="/dashboard/reports"
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      location.pathname === '/dashboard/reports'
-                        ? 'bg-orange-100 text-orange-600'
-                        : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
-                    }`}
-                  >
-                    Báo cáo
-                  </Link>
-                  <Link
                     to="/dashboard/report-requests"
                     className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
                       location.pathname === '/dashboard/report-requests'
@@ -153,7 +145,7 @@ export default function Layout() {
                         : 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
                     }`}
                   >
-                    Yêu cầu hoàn tiền
+                    Yêu Cầu Hoàn Tiền
                   </Link>
                 </>
               )}
@@ -251,6 +243,15 @@ export default function Layout() {
                   </Link>
                 </>
               )}
+              {isOrganizer && (
+                <Link
+                  to="/dashboard/reports"
+                  className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Báo cáo
+                </Link>
+              )}
               {!isOrganizer && !isStaff && (
                 <>
                   <Link
@@ -272,26 +273,12 @@ export default function Layout() {
               {isStaff && (
                 <>
                   <Link
-                    to="/dashboard/venues"
+                    to="/dashboard/report-requests"
                     className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Địa điểm
+                    Yêu Cầu Hoàn Tiền
                   </Link>
-                  <Link
-                    to="/dashboard/reports"
-                    className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Báo cáo
-                  </Link>
-                    <Link
-                      to="/dashboard/report-requests"
-                      className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Yêu cầu hoàn tiền
-                    </Link>
                 </>
               )}
               {isAdmin && (

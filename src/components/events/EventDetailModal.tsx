@@ -58,6 +58,16 @@ export function EventDetailModal({
   // Dùng để chuyển sang /dashboard/payment
   const navigate = useNavigate()
 
+  // Nếu user là Organizer/Staff/Admin (cố gắng nhận diện các biến thể như
+  // 'STAFF ADMIN', 'ORGENIZER'...) -> chỉ chặn đặt ghế, vẫn cho xem sơ đồ
+  const isManager = !!(
+    userRole &&
+    /(?:ORGAN|ORGEN|STAFF|ADMIN)/i.test(String(userRole).trim())
+  )
+
+  // DEBUG: Log userRole and isManager to console
+  console.log('EventDetailModal - userRole:', userRole, '- isManager:', isManager)
+
   // ===================== STATE =====================
 
   // Vé đang được user "chọn" (click vào dòng vé ở phần giá vé)
@@ -579,17 +589,19 @@ export function EventDetailModal({
                 )}
 
                 {/* ===== SEAT GRID ===== */}
+                {/* Cho mọi role đều xem sơ đồ ghế, chỉ chặn đặt ghế cho manager */}
                 {event.areaId && (
                   <div className="border-t pt-6">
                     <h3 className="text-lg font-semibold mb-4">Chọn ghế</h3>
-
                     <SeatGrid
-                      seats={allSeats}                      // danh sách tất cả ghế
-                      loading={loadingSeats}                // loading khi fetch seats
-                      selectedSeats={selectedSeats}         // ghế đã chọn để highlight
-                      onSeatSelect={(seat) => seat && handleSeatSelect(seat)} // click ghế
-                      maxReached={selectedSeats.length >= 4} // đã đủ 4 ghế chưa
-                      disabled={eventEnded}                 // event kết thúc => disable
+                      seats={allSeats}
+                      loading={loadingSeats}
+                      selectedSeats={selectedSeats}
+                      onSeatSelect={(seat) => seat && handleSeatSelect(seat)}
+                      maxReached={selectedSeats.length >= 4}
+                      // only disable visuals if event ended; allow viewing for managers but prevent selecting
+                      disabled={eventEnded}
+                      allowSelect={!isManager}
                     />
                   </div>
                 )}
@@ -634,11 +646,11 @@ export function EventDetailModal({
                       Đóng
                     </button>
 
-                    {/* Chỉ hiện nút xác nhận khi đã chọn ít nhất 1 ghế */}
-                    {selectedSeats.length > 0 && (
+                    {/* Chỉ hiện nút xác nhận khi đã chọn ít nhất 1 ghế và không phải organizer/staff/admin */}
+                    {selectedSeats.length > 0 && !isManager && (
                       <button
                         onClick={confirmSeats}
-                        disabled={eventEnded} // event ended => không cho confirm
+                        disabled={eventEnded}
                         className={`px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
                           eventEnded ? 'opacity-50 cursor-not-allowed' : ''
                         }`}

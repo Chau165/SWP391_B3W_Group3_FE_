@@ -565,6 +565,7 @@ export default function Dashboard() {
         loading={loadingDetail}      // loading khi fetch detail
         error={detailError}          // lỗi fetch detail
         token={token}                // token để modal gọi API tiếp nếu cần (vd: đăng ký/đặt ghế)
+        userRole={user?.role}        // truyền role để ẩn chọn ghế cho ORGANIZER/STAFF/ADMIN
       />
     </div>
   )

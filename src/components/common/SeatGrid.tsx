@@ -26,10 +26,12 @@ interface SeatGridProps {
   seats: Seat[]                          // danh sách ghế
   loading?: boolean                      // đang load ghế hay không
   selectedSeats?: Seat[]                 // danh sách ghế đã chọn (để highlight)
-  onSeatSelect: (seat: Seat | null) => void // callback trả về ghế khi user click
+  onSeatSelect?: (seat: Seat | null) => void // callback trả về ghế khi user click
   maxReached?: boolean                   // đã chọn đủ số ghế tối đa chưa (vd tối đa 4)
   // Khi true: khóa toàn bộ grid (read-only), dùng khi event đã kết thúc
   disabled?: boolean
+  // Khi false: không cho chọn ghế nhưng vẫn hiển thị trạng thái ghế (view-only)
+  allowSelect?: boolean
 }
 
 // ===================== COMPONENT =====================
@@ -40,6 +42,7 @@ export function SeatGrid({
   onSeatSelect,
   maxReached = false,
   disabled = false,
+  allowSelect = true,
 }: SeatGridProps) {
   // error state hiện tại chưa set ở đâu (đang = null cố định),
   // nhưng để sẵn để sau này có thể hiển thị lỗi.
@@ -265,21 +268,22 @@ export function SeatGrid({
                         key={seat.seatId}
                         type="button"
                         onClick={() => {
-                          // Nếu grid disabled hoặc ghế không AVAILABLE => không làm gì
+                          // Nếu grid (event ended) hoặc ghế không AVAILABLE => không làm gì
                           if (disabled || seat.status !== 'AVAILABLE') return
+                          // Nếu component cha không cho phép chọn ghế (view-only) => không làm gì
+                          if (!allowSelect) return
+                          // Nếu không có callback => không làm gì
+                          if (typeof onSeatSelect !== 'function') return
                           // Nếu hợp lệ => báo ghế lên component cha
                           onSeatSelect(seat)
                         }}
                         // Disable nút khi:
-                        // - grid disabled
+                        // - grid disabled (event ended)
                         // - hoặc ghế không AVAILABLE
-                        disabled={disabled || seat.status !== 'AVAILABLE'}
+                        // - hoặc không cho phép chọn ghế (view-only)
+                        disabled={disabled || seat.status !== 'AVAILABLE' || !allowSelect}
                         className={`w-12 h-10 border-2 rounded-lg text-xs font-medium transition-colors ${
-                          getSeatColor(
-                            seat,
-                            selectedSeats.some((s) => s.seatId === seat.seatId),
-                            disabled,
-                          )
+                          getSeatColor(seat, selectedSeats.some((s) => s.seatId === seat.seatId), disabled)
                         }`}
                         // Tooltip khi hover
                         title={
