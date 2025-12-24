@@ -61,12 +61,7 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
 
   useEffect(() => {
-    if (isDev) {
-      setUsers(mockUsers)
-      setLoading(false)
-      return
-    }
-
+    // Always fetch from real API (do not use mock data in dev)
     fetchUsers()
   }, [])
 
@@ -77,7 +72,7 @@ export default function AdminDashboard() {
     try {
       const token = localStorage.getItem('token')
 
-      const response = await fetch('http://localhost:3000/api/admin/users', {
+      const response = await fetch('http://localhost:3000/api/users/staff-organizer', {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -85,7 +80,38 @@ export default function AdminDashboard() {
 
       if (response.ok) {
         const data = await response.json()
-        const usersArray = Array.isArray(data) ? data : data.users || []
+
+        // Support multiple response shapes:
+        // - legacy: an array of users
+        // - new: { staffList: [...], organizerList: [...] }
+        let usersArray: User[] = []
+
+        if (Array.isArray(data)) {
+          usersArray = data
+        } else if (data && (Array.isArray(data.staffList) || Array.isArray(data.organizerList))) {
+          const staff = Array.isArray(data.staffList) ? data.staffList : []
+          const organizers = Array.isArray(data.organizerList) ? data.organizerList : []
+
+          const normalize = (item: any, forcedRole: 'STAFF' | 'ORGANIZER') => ({
+            userId: item.id,
+            username: item.username || (item.email ? String(item.email).split('@')[0] : `user${item.id}`),
+            fullName: item.fullName || '',
+            email: item.email || '',
+            phone: item.phone || '',
+            role: forcedRole,
+            status: item.status ? String(item.status).toUpperCase() as 'ACTIVE' | 'INACTIVE' : 'ACTIVE',
+            createdAt: item.createdAt || new Date().toISOString()
+          })
+
+          usersArray = [
+            ...staff.map((s: any) => normalize(s, 'STAFF')),
+            ...organizers.map((o: any) => normalize(o, 'ORGANIZER'))
+          ]
+        } else {
+          // fallback to empty
+          usersArray = []
+        }
+
         setUsers(usersArray)
       } else {
         throw new Error('Failed to fetch users')
@@ -121,8 +147,10 @@ export default function AdminDashboard() {
         await fetchUsers()
         setIsFormModalOpen(false)
       } else {
-        showToast('error', result.message || 'Tạo người dùng thất bại')
-        throw new Error(result.message || 'Failed to create user')
+        // API may return { error: '...' } or { message: '...' }
+        const errMsg = result?.error || result?.message || 'Tạo người dùng thất bại'
+        // Throw so callers (modal) can display the message; avoid double toasts here
+        throw new Error(String(errMsg))
       }
     } catch (error) {
       console.error('Error creating user:', error)
@@ -156,8 +184,8 @@ export default function AdminDashboard() {
         await fetchUsers()
         setIsFormModalOpen(false)
       } else {
-        showToast('error', result.message || 'Cập nhật người dùng thất bại')
-        throw new Error(result.message || 'Failed to update user')
+        const errMsg = result?.error || result?.message || 'Cập nhật người dùng thất bại'
+        throw new Error(String(errMsg))
       }
     } catch (error) {
       console.error('Error updating user:', error)

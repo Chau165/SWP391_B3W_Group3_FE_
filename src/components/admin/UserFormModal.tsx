@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useToast } from '../../contexts/ToastContext'
 import { X } from 'lucide-react'
 import type { User, CreateUserRequest, UpdateUserRequest } from '../../types/user'
 import {
@@ -26,6 +27,7 @@ export default function UserFormModal({
   user,
   mode
 }: UserFormModalProps) {
+  const { showToast } = useToast()
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -173,6 +175,14 @@ export default function UserFormModal({
       onClose()
     } catch (error) {
       console.error('Form submit error:', error)
+      // Show API/backend error message to user via toast
+      const errMsg =
+        error instanceof Error
+          ? error.message
+          : error && typeof error === 'object' && 'message' in error
+          ? (error as any).message
+          : String(error)
+      showToast('error', errMsg || 'Đã có lỗi xảy ra')
     } finally {
       setLoading(false)
     }
