@@ -5,6 +5,12 @@ import axios from 'axios'
 import ReCAPTCHA from 'react-google-recaptcha'
 import fptLogo from '../assets/fpt-logo.png'
 import fptCampus from '../assets/dai-hoc-fpt-tp-hcm-1.jpeg'
+import {
+  getEmailError,
+  getPhoneError,
+  getFullNameError,
+  getPasswordError
+} from '../utils/validation'
 
 // Use proxy to avoid CORS issues in development
 // Cấu hình proxy API để tránh lỗi Cross-Origin khi chạy localhost
@@ -45,6 +51,8 @@ export default function Register() {
     phone: '',
     otp: ''
   })
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
   const [error, setError] = useState('') // Lưu lỗi hiển thị
   const [loading, setLoading] = useState(false) // Trạng thái loading
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null) // Token Captcha
@@ -69,15 +77,58 @@ export default function Register() {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     setError('')
+    // real-time validation when field has been touched
+    if (touched[name]) {
+      const fieldError = validateField(name, value)
+      setErrors(prev => (fieldError ? { ...prev, [name]: fieldError } : Object.keys(prev).includes(name) ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== name)) : prev))
+    }
+  }
+
+  const handleFieldBlur = (name: string) => {
+    setTouched(prev => ({ ...prev, [name]: true }))
+    const value = formData[name as keyof FormData] as string
+    const fieldError = validateField(name, value)
+    setErrors(prev => (fieldError ? { ...prev, [name]: fieldError } : Object.keys(prev).includes(name) ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== name)) : prev))
+  }
+
+  const validateField = (name: string, value: string): string | null => {
+    switch (name) {
+      case 'fullName':
+        return getFullNameError(value)
+      case 'email':
+        return getEmailError(value)
+      case 'phone':
+        return getPhoneError(value)
+      case 'password':
+        return getPasswordError(value)
+      case 'confirmPassword':
+        if (value !== formData.password) return 'Mật khẩu xác nhận không khớp!'
+        return null
+      default:
+        return null
+    }
   }
 
   // Validate khớp mật khẩu
   const validateForm = (): boolean => {
-    if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp!')
-      return false
-    }
-    return true
+    const newErrors: Record<string, string> = {}
+
+    const fullNameError = getFullNameError(formData.fullName)
+    if (fullNameError) newErrors.fullName = fullNameError
+
+    const phoneError = getPhoneError(formData.phone)
+    if (phoneError) newErrors.phone = phoneError
+
+    const emailError = getEmailError(formData.email)
+    if (emailError) newErrors.email = emailError
+
+    const passwordError = getPasswordError(formData.password)
+    if (passwordError) newErrors.password = passwordError
+
+    if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp!'
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   // HÀM XỬ LÝ BƯỚC 1: GỬI YÊU CẦU LẤY MÃ OTP
@@ -89,31 +140,8 @@ export default function Register() {
     }
 
     // Validate các trường bắt buộc trước khi gọi API
-    if (!formData.fullName || formData.fullName.trim() === '') {
-      setError('Vui lòng nhập họ và tên!')
-      return
-    }
-
-    if (!formData.phone || formData.phone.trim() === '') {
-      setError('Vui lòng nhập số điện thoại!')
-      return
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!formData.email || !emailRegex.test(formData.email)) {
-      setError('Vui lòng nhập email hợp lệ!')
-      return
-    }
-
-    if (!formData.password || formData.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự!')
-      return
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp!')
-      return
-    }
+    // Run validation util before sending OTP
+    if (!validateForm()) return
 
     setLoading(true)
     try {
@@ -302,10 +330,12 @@ export default function Register() {
               type="text"
               value={formData.fullName}
               onChange={handleInputChange}
+              onBlur={() => handleFieldBlur('fullName')}
               placeholder="Nguyễn Văn A"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.fullName ? 'border-red-500' : 'border-gray-300'}`}
             />
+            {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
           </div>
 
           {/* Input Số điện thoại */}
@@ -319,10 +349,12 @@ export default function Register() {
               type="tel"
               value={formData.phone}
               onChange={handleInputChange}
+              onBlur={() => handleFieldBlur('phone')}
               placeholder="0901234567"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
             />
+            {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
           </div>
 
           {/* Input Email */}
@@ -336,10 +368,12 @@ export default function Register() {
               type="email"
               value={formData.email}
               onChange={handleInputChange}
+              onBlur={() => handleFieldBlur('email')}
               placeholder="email@fpt.edu.vn"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
             />
+            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
           </div>
 
           {/* Input Mật khẩu */}
@@ -353,10 +387,12 @@ export default function Register() {
               type="password"
               value={formData.password}
               onChange={handleInputChange}
+              onBlur={() => handleFieldBlur('password')}
               placeholder="Nhập mật khẩu"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
             />
+            {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
           </div>
 
           {/* Input Xác nhận mật khẩu */}
@@ -370,10 +406,12 @@ export default function Register() {
               type="password"
               value={formData.confirmPassword}
               onChange={handleInputChange}
+              onBlur={() => handleFieldBlur('confirmPassword')}
               placeholder="Nhập lại mật khẩu"
               required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'}`}
             />
+            {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
           </div>
 
           {/* KHU VỰC NHẬP OTP (Kết hợp Input + Nút Gửi) */}

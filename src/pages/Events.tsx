@@ -399,14 +399,14 @@ export default function Events() {
                           <img
                             src={event.bannerUrl}
                             alt={event.title}
-                            className="w-full h-48 object-cover"
+                            className="w-full h-36 sm:h-48 object-cover"
                           />
                         )}
 
                         {/* Content */}
-                        <div className="p-6 flex flex-col flex-grow">
+                        <div className="p-4 sm:p-6 flex flex-col flex-grow">
                           <div className="flex items-start justify-between mb-2">
-                            <h3 className="text-xl font-semibold text-gray-900 flex-1 line-clamp-2 min-h-[3.5rem]">
+                            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex-1 line-clamp-2 min-h-[2.4rem] sm:min-h-[3.5rem]">
                               {event.title}
                             </h3>
 
@@ -444,7 +444,7 @@ export default function Events() {
                           </div>
 
                           {/* Mô tả */}
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
+                          <p className="text-gray-600 text-sm sm:text-sm mb-4 line-clamp-2 min-h-[1.8rem] sm:min-h-[2.5rem]">
                             {event.description}
                           </p>
 
@@ -492,7 +492,7 @@ export default function Events() {
 
                             <button
                               onClick={() => handleEventClick(event)}
-                              className="w-full text-center bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                              className="w-full text-center bg-blue-600 text-white py-1.5 sm:py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
                             >
                               Xem chi tiết
                             </button>
@@ -522,13 +522,13 @@ export default function Events() {
                           <img
                             src={event.bannerUrl}
                             alt={event.title}
-                            className="w-full h-48 object-cover"
+                            className="w-full h-36 sm:h-48 object-cover"
                           />
                         )}
 
-                        <div className="p-6 flex flex-col flex-grow">
+                        <div className="p-4 sm:p-6 flex flex-col flex-grow">
                           <div className="flex items-start justify-between mb-2">
-                            <h3 className="text-xl font-semibold text-gray-600 flex-1 line-clamp-2 min-h-[3.5rem]">
+                            <h3 className="text-lg sm:text-xl font-semibold text-gray-600 flex-1 line-clamp-2 min-h-[2.4rem] sm:min-h-[3.5rem]">
                               {event.title}
                             </h3>
 
@@ -563,7 +563,7 @@ export default function Events() {
                           </div>
 
                           {/* Mô tả */}
-                          <p className="text-gray-500 text-sm mb-4 line-clamp-2 min-h-[2.5rem]">
+                          <p className="text-gray-500 text-sm mb-4 line-clamp-2 min-h-[1.8rem] sm:min-h-[2.5rem]">
                             {event.description}
                           </p>
 
@@ -599,7 +599,7 @@ export default function Events() {
 
                             <button
                               onClick={() => handleEventClick(event)}
-                              className="w-full text-center bg-gray-400 text-white py-2 rounded-lg opacity-50 cursor-not-allowed"
+                              className="w-full text-center bg-gray-400 text-white py-1.5 sm:py-2 rounded-lg opacity-50 cursor-not-allowed text-sm"
                               disabled
                             >
                               Xem chi tiết

@@ -71,6 +71,9 @@ export default function AdminDashboard() {
   }, [])
 
   const fetchUsers = async () => {
+    // Fetch list of users (ADMIN-managed) from backend
+    // GET http://localhost:3000/api/admin/users
+    // Uses stored `token` for Authorization header (Bearer)
     try {
       const token = localStorage.getItem('token')
 
@@ -96,10 +99,13 @@ export default function AdminDashboard() {
   }
 
   const handleCreateUser = async (data: CreateUserRequest) => {
+    // Create a new account via Admin API
+    // POST http://localhost:3000/api/admin/create-account
+    // Expects body: { fullName, phone, email, password, role }
     try {
       const token = localStorage.getItem('token')
 
-      const response = await fetch('http://localhost:3000/api/admin/users', {
+      const response = await fetch('http://localhost:3000/api/admin/create-account', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -125,6 +131,9 @@ export default function AdminDashboard() {
   }
 
   const handleUpdateUser = async (data: UpdateUserRequest) => {
+    // Update an existing user
+    // PUT http://localhost:3000/api/admin/users/:userId
+    // Body may include fullName, email, phone, role, status
     try {
       const token = localStorage.getItem('token')
 
@@ -157,6 +166,9 @@ export default function AdminDashboard() {
   }
 
   const performDeleteUser = async (userId: number) => {
+    // Delete a user by id
+    // DELETE http://localhost:3000/api/admin/users/:userId
+    // On success refetches the user list
     try {
       const token = localStorage.getItem('token')
 

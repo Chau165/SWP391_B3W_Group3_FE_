@@ -386,7 +386,7 @@ export function EventDetailModal({
                     <img
                       src={event.bannerUrl}
                       alt={event.title}
-                      className="w-full h-64 object-cover rounded-lg"
+                      className="w-full h-40 sm:h-64 object-cover rounded-lg"
                     />
                   </div>
                 )}
@@ -478,19 +478,19 @@ export function EventDetailModal({
                   {event.speakerName && (!event.speakerBio || event.speakerBio.length <= 50) && (
                     <div className="flex items-start">
                       {event.speakerAvatarUrl ? (
-                        <img
-                          src={event.speakerAvatarUrl}
-                          alt={event.speakerName}
-                          className="w-16 h-16 rounded-full object-cover mr-3 mt-0.5"
-                        />
+                            <img
+                              src={event.speakerAvatarUrl}
+                              alt={event.speakerName}
+                              className="w-10 h-10 sm:w-16 sm:h-16 rounded-full object-cover mr-3 mt-0.5"
+                            />
                       ) : (
                         <span className="text-3xl mr-3">👤</span>
                       )}
                       <div>
-                        <p className="text-sm text-gray-600">Diễn giả</p>
-                        <p className="font-semibold text-lg">{event.speakerName}</p>
+                        <p className="text-xs sm:text-sm text-gray-600">Diễn giả</p>
+                        <p className="font-semibold text-base sm:text-lg">{event.speakerName}</p>
                         {event.speakerBio && (
-                          <p className="text-sm text-gray-600 mt-1">{event.speakerBio}</p>
+                          <p className="text-xs sm:text-sm text-gray-600 mt-1">{event.speakerBio}</p>
                         )}
                       </div>
                     </div>
@@ -505,15 +505,15 @@ export function EventDetailModal({
                         <img
                           src={event.speakerAvatarUrl}
                           alt={event.speakerName || 'Speaker'}
-                          className="w-32 h-32 rounded-full object-cover shadow-lg flex-shrink-0"
+                          className="w-20 h-20 sm:w-32 sm:h-32 rounded-full object-cover shadow-lg flex-shrink-0"
                         />
                       )}
                       <div className="flex-1">
-                        <h3 className="text-2xl font-bold mb-3 flex items-center text-gray-900">
-                          {!event.speakerAvatarUrl && <span className="mr-2 text-3xl">👤</span>}
+                        <h3 className="text-lg sm:text-2xl font-bold mb-3 flex items-center text-gray-900">
+                          {!event.speakerAvatarUrl && <span className="mr-2 text-2xl sm:text-3xl">👤</span>}
                           Về diễn giả{event.speakerName && `: ${event.speakerName}`}
                         </h3>
-                        <p className="text-gray-700 text-base leading-relaxed">
+                        <p className="text-gray-700 text-sm sm:text-base leading-relaxed">
                           {event.speakerBio}
                         </p>
                       </div>

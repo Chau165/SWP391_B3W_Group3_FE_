@@ -102,6 +102,10 @@ export function SeatGrid({
     ),
   )
 
+  // If a row has many columns, enable a compact mode for mobile:
+  // - smaller buttons, tighter gaps, and allow wrapping to avoid a huge horizontal row
+  const compactMode = maxColumns >= 10
+
   // ===================== CREATE FULL GRID FOR A ROW =====================
   // Tạo grid dạng (Seat | null)[] theo số cột maxCols
   // col từ 1..maxCols:
@@ -191,10 +195,12 @@ export function SeatGrid({
   // ===================== RENDER UI =====================
   return (
     <div className="mb-6">
+      {/* Hide native scrollbars for seat rows when overflow-x is used */}
+      <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{-ms-overflow-style:none;scrollbar-width:none;}`}</style>
       {/* ===================== LABEL VIP SECTION ===================== */}
       {/* Nếu có VIP => hiển thị nhãn VIP SECTION phía trên */}
       {hasVipSection && (
-        <div className="mb-2 flex items-center gap-2">
+        <div className="mb-2 flex items-center gap-2 lg:justify-center">
           <div className="px-3 py-1 bg-red-100 text-red-800 text-xs font-semibold rounded-full border border-red-300">
             VIP SECTION
           </div>
@@ -202,7 +208,8 @@ export function SeatGrid({
       )}
 
       {/* ===================== GRID THEO HÀNG ===================== */}
-      <div className="space-y-3">
+      {/* Center grid on larger screens using a max-width and mx-auto */}
+      <div className="space-y-3 max-w-4xl mx-auto px-2">
         {sortedRows.map((row) => {
           // Tạo grid cho hàng hiện tại (có null placeholder)
           const seatGrid = createSeatGrid(seatsByRow[row], maxColumns)
@@ -222,7 +229,7 @@ export function SeatGrid({
               {/* ===================== LABEL STANDARD SECTION ===================== */}
               {/* Nhãn STANDARD hiện trước hàng STANDARD đầu tiên */}
               {isFirstStandardRow && hasStandardSection && (
-                <div className="mb-2 mt-4 flex items-center gap-2">
+                <div className="mb-2 mt-4 flex items-center gap-2 lg:justify-center">
                   <div className="px-3 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded-full border border-blue-300">
                     STANDARD SECTION
                   </div>
@@ -230,15 +237,19 @@ export function SeatGrid({
               )}
 
               {/* 1 dòng (row) gồm: ký hiệu hàng + danh sách ghế */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 lg:justify-center">
                 {/* Cột hiển thị chữ hàng (A/B/C) */}
-                <div className="w-8 text-center font-semibold text-gray-700 text-sm">
+                  <div className="w-5 sm:w-8 text-center font-semibold text-gray-700 text-xs sm:text-sm">
                   {row}
                 </div>
 
                 {/* Khối ghế trong hàng */}
                 <div
-                  className={`flex gap-2 ${
+                  className={`flex ${
+                    compactMode
+                      ? 'gap-0.5 sm:gap-2 overflow-x-auto hide-scrollbar flex-nowrap py-1'
+                      : 'gap-1 sm:gap-2 overflow-x-auto hide-scrollbar flex-nowrap py-1'
+                  } ${
                     // Nếu là VIP row => thêm border đỏ + nền đỏ nhạt
                     isVipRow
                       ? `${isFirstVipRow ? 'pt-3' : ''} ${
@@ -282,7 +293,11 @@ export function SeatGrid({
                         // - hoặc ghế không AVAILABLE
                         // - hoặc không cho phép chọn ghế (view-only)
                         disabled={disabled || seat.status !== 'AVAILABLE' || !allowSelect}
-                        className={`w-12 h-10 border-2 rounded-lg text-xs font-medium transition-colors ${
+                        className={`${
+                          compactMode
+                            ? 'w-6 h-6 sm:w-10 sm:h-8 text-[9px] sm:text-[11px]'
+                            : 'w-8 h-7 sm:w-12 sm:h-10 text-[10px] sm:text-xs'
+                        } border-2 rounded-lg font-medium transition-colors flex-shrink-0 ${
                           getSeatColor(seat, selectedSeats.some((s) => s.seatId === seat.seatId), disabled)
                         }`}
                         // Tooltip khi hover
@@ -298,11 +313,15 @@ export function SeatGrid({
                           ? ''
                           : seat.seatCode}
                       </button>
-                    ) : (
+                      ) : (
                       // Nếu ô null => render div trống để giữ layout cột
                       <div
                         key={`empty-${row}-${index}`}
-                        className="w-12 h-10"
+                        className={`${
+                          compactMode
+                            ? 'w-6 h-6 sm:w-10 sm:h-8 flex-shrink-0'
+                            : 'w-8 h-7 sm:w-12 sm:h-10 flex-shrink-0'
+                        }`}
                       ></div>
                     ),
                   )}

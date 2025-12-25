@@ -122,8 +122,21 @@ export default function CheckIn() {
           { fps: 10, qrbox: { width: 280, height: 280 } },
           (decodedText) => {
             // Callback khi quét thành công - nhận được nội dung QR
-            processAction(decodedText) // Xử lý check-in/check-out
-            stopScanning() // Dừng quét sau khi đã quét được
+            // Use stopScanning() to consistently stop/clear and avoid races
+            if (scannerRef.current) {
+              stopScanning()
+                .then(() => {
+                  processAction(decodedText)
+                })
+                .catch((err) => {
+                  console.error('Error stopping scanner after decode', err)
+                  // Still process the decoded QR even if stopping failed
+                  processAction(decodedText)
+                })
+            } else {
+              setScanning(false)
+              processAction(decodedText)
+            }
           },
           () => {},  // Callback khi quét thất bại - bỏ trống vì không cần xử lý
         )
@@ -134,12 +147,30 @@ export default function CheckIn() {
     }
 
     // Cleanup function: chạy khi component unmount hoặc dependency thay đổi
-    // Đảm bảo dừng camera và giải phóng tài nguyên
+    // Đảm bảo dừng camera và giải phóng tài nguyên - wait for stop before clear
     return () => {
       if (scannerRef.current) {
-        scannerRef.current.stop().catch(() => {})  // Dừng quét (bỏ qua lỗi nếu có)
-        scannerRef.current.clear()  // Xóa element video khỏi DOM
-        scannerRef.current = null   // Reset ref về null
+        const ref = scannerRef.current
+        ref
+          .stop()
+          .then(() => {
+            try {
+              ref.clear()
+            } catch (e) {
+              console.warn('Failed to clear scanner element during cleanup', e)
+            }
+          })
+          .catch((e) => {
+            console.warn('Error stopping scanner during cleanup', e)
+            try {
+              ref.clear()
+            } catch (err) {
+              console.warn('Failed to clear scanner element after stop error', err)
+            }
+          })
+          .finally(() => {
+            if (scannerRef.current === ref) scannerRef.current = null
+          })
       }
     }
   }, [scanning])  // Dependency: chỉ chạy lại khi 'scanning' thay đổi
@@ -166,13 +197,37 @@ export default function CheckIn() {
    * Dừng camera scanner và reset state scanning về false
    * Được gọi khi: quét xong, nhấn nút dừng, hoặc chuyển tab
    */
-  const stopScanning = () => {
+  const stopScanning = (): Promise<void> => {
+    // Ensure we wait for the scanner to stop before clearing the element.
+    // Set `scanning` to false only after stop/clear completes to avoid
+    // removing the camera UI while the native stream is still active.
     if (scannerRef.current) {
-      scannerRef.current.stop().catch(() => {})  // Dừng camera
-      scannerRef.current.clear()                  // Xóa element video
-      scannerRef.current = null                   // Reset ref
+      const ref = scannerRef.current
+      return ref
+        .stop()
+        .then(() => {
+          try {
+            ref.clear()
+          } catch (e) {
+            console.warn('Failed to clear scanner element', e)
+          }
+        })
+        .catch((e) => {
+          console.warn('Error stopping scanner', e)
+          try {
+            ref.clear()
+          } catch (err) {
+            console.warn('Failed to clear scanner after stop error', err)
+          }
+        })
+        .finally(() => {
+          if (scannerRef.current === ref) scannerRef.current = null
+          setScanning(false)
+        }) as Promise<void>
     }
-    setScanning(false)  // Cập nhật state
+
+    setScanning(false)
+    return Promise.resolve()
   }
 
   // ===========================================================================
@@ -451,6 +506,15 @@ export default function CheckIn() {
     setResult(null)
   }
 
+  /**
+   * Xóa kết quả hiện tại và khởi động lại camera để quét vé tiếp theo
+   * Được dùng cho nút "{actionLabel} tiếp theo" để tự động bật camera
+   */
+  const startNext = () => {
+    setResult(null)
+    setScanning(true)
+  }
+
   // ===========================================================================
   // BIẾN TIỆN ÍCH CHO RENDER
   // ===========================================================================
@@ -618,9 +682,9 @@ export default function CheckIn() {
 
               {/* Nút dừng quét */}
               <button
-                onClick={() => {
-                  stopScanning()  // Tắt camera
-                  resetResult()   // Xóa kết quả
+                onClick={async () => {
+                  await stopScanning() // Tắt camera (await to ensure proper stop/clear)
+                  resetResult()         // Xóa kết quả
                 }}
                 className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700"
               >
@@ -744,7 +808,7 @@ export default function CheckIn() {
 
               {/* Nút để tiếp tục check-in/check-out vé tiếp theo */}
               <button
-                onClick={resetResult}
+                onClick={startNext}
                 className="w-full mt-4 text-white py-2 rounded-lg bg-gray-600 hover:bg-gray-700"
               >
                 {actionLabel} tiếp theo

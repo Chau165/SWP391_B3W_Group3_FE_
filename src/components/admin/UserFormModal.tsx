@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import type { User, CreateUserRequest, UpdateUserRequest } from '../../types/user'
+import {
+  getEmailError,
+  getPhoneError,
+  getFullNameError,
+  getPasswordError
+} from '../../utils/validation'
 
 interface UserFormModalProps {
   isOpen: boolean
@@ -26,12 +32,13 @@ export default function UserFormModal({
     fullName: '',
     email: '',
     phone: '',
-    role: 'STAFF' as 'ORGANIZER' | 'STAFF',
+    role: 'STAFF' as 'ADMIN' | 'ORGANIZER' | 'STAFF',
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE'
   })
 
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
 
   // Reset form khi mở modal hoặc thay đổi user
   useEffect(() => {
@@ -43,7 +50,7 @@ export default function UserFormModal({
           fullName: user.fullName,
           email: user.email,
           phone: user.phone,
-          role: user.role as 'ORGANIZER' | 'STAFF',
+          role: user.role as 'ADMIN' | 'ORGANIZER' | 'STAFF',
           status: user.status
         })
       } else {
@@ -58,35 +65,76 @@ export default function UserFormModal({
         })
       }
       setErrors({})
+      setTouched({})
     }
   }, [isOpen, mode, user])
+
+  // Real-time validation for a specific field
+  const validateField = (name: string, value: string): string | null => {
+    switch (name) {
+      case 'fullName':
+        return getFullNameError(value)
+      case 'email':
+        return getEmailError(value)
+      case 'phone':
+        return getPhoneError(value)
+      case 'password':
+        if (mode === 'create') {
+          return getPasswordError(value)
+        }
+        return null
+      default:
+        return null
+    }
+  }
+
+  // Handle field change with real-time validation
+  const handleFieldChange = (name: string, value: string) => {
+    // Update form data
+    setFormData({ ...formData, [name]: value })
+
+    // Validate if field has been touched
+    if (touched[name]) {
+      const error = validateField(name, value)
+      setErrors(prev => {
+        if (error) {
+          return { ...prev, [name]: error }
+        } else {
+          const { [name]: removed, ...rest } = prev
+          return rest
+        }
+      })
+    }
+  }
+
+  // Handle field blur (mark as touched)
+  const handleFieldBlur = (name: string) => {
+    setTouched(prev => ({ ...prev, [name]: true }))
+    const error = validateField(name, formData[name as keyof typeof formData] as string)
+    if (error) {
+      setErrors(prev => ({ ...prev, [name]: error }))
+    }
+  }
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
+    // Validate fullName
+    const fullNameError = getFullNameError(formData.fullName)
+    if (fullNameError) newErrors.fullName = fullNameError
+
+    // Validate email
+    const emailError = getEmailError(formData.email)
+    if (emailError) newErrors.email = emailError
+
+    // Validate phone
+    const phoneError = getPhoneError(formData.phone)
+    if (phoneError) newErrors.phone = phoneError
+
+    // Validate password (only for create mode)
     if (mode === 'create') {
-      if (!formData.username.trim()) {
-        newErrors.username = 'Username không được để trống'
-      }
-      if (!formData.password.trim()) {
-        newErrors.password = 'Mật khẩu không được để trống'
-      } else if (formData.password.length < 6) {
-        newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự'
-      }
-    }
-
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Họ tên không được để trống'
-    }
-
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email không được để trống'
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email không hợp lệ'
-    }
-
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'Số điện thoại không được để trống'
+      const passwordError = getPasswordError(formData.password)
+      if (passwordError) newErrors.password = passwordError
     }
 
     setErrors(newErrors)
@@ -104,11 +152,10 @@ export default function UserFormModal({
     try {
       if (mode === 'create') {
         const createData: CreateUserRequest = {
-          username: formData.username,
-          password: formData.password,
           fullName: formData.fullName,
-          email: formData.email,
           phone: formData.phone,
+          email: formData.email,
+          password: formData.password,
           role: formData.role
         }
         await onSubmit(createData)
@@ -152,44 +199,24 @@ export default function UserFormModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Username - chỉ hiển thị khi tạo mới */}
-          {mode === 'create' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Username <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.username}
-                onChange={e =>
-                  setFormData({ ...formData, username: e.target.value })
-                }
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.username ? 'border-red-500' : 'border-gray-300'
-                }`}
-                disabled={loading}
-              />
-              {errors.username && (
-                <p className="text-red-500 text-sm mt-1">{errors.username}</p>
-              )}
-            </div>
-          )}
-
-          {/* Username - chỉ hiển thị (readonly) khi edit */}
-          {mode === 'edit' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Username
-              </label>
-              <input
-                type="text"
-                value={formData.username}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100"
-                disabled
-                readOnly
-              />
-            </div>
-          )}
+          {/* Email */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={e => handleFieldChange('email', e.target.value)}
+              onBlur={() => handleFieldBlur('email')}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
+              disabled={loading}
+              placeholder="user@example.com"
+            />
+            {errors.email && (
+              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+            )}
+          </div>
 
           {/* Password - chỉ hiển thị khi tạo mới */}
           {mode === 'create' && (
@@ -200,19 +227,19 @@ export default function UserFormModal({
               <input
                 type="password"
                 value={formData.password}
-                onChange={e =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                  errors.password ? 'border-red-500' : 'border-gray-300'
-                }`}
+                onChange={e => handleFieldChange('password', e.target.value)}
+                onBlur={() => handleFieldBlur('password')}
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.password ? 'border-red-500' : 'border-gray-300'}`}
                 disabled={loading}
+                placeholder="Tối thiểu 6 ký tự, có chữ và số"
               />
               {errors.password && (
                 <p className="text-red-500 text-sm mt-1">{errors.password}</p>
               )}
             </div>
           )}
+
+
 
           {/* Full Name */}
           <div>
@@ -222,37 +249,14 @@ export default function UserFormModal({
             <input
               type="text"
               value={formData.fullName}
-              onChange={e =>
-                setFormData({ ...formData, fullName: e.target.value })
-              }
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.fullName ? 'border-red-500' : 'border-gray-300'
-              }`}
+              onChange={e => handleFieldChange('fullName', e.target.value)}
+              onBlur={() => handleFieldBlur('fullName')}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.fullName ? 'border-red-500' : 'border-gray-300'}`}
               disabled={loading}
+              placeholder="Nguyễn Văn A"
             />
             {errors.fullName && (
               <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={e =>
-                setFormData({ ...formData, email: e.target.value })
-              }
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.email ? 'border-red-500' : 'border-gray-300'
-              }`}
-              disabled={loading}
-            />
-            {errors.email && (
-              <p className="text-red-500 text-sm mt-1">{errors.email}</p>
             )}
           </div>
 
@@ -264,13 +268,11 @@ export default function UserFormModal({
             <input
               type="tel"
               value={formData.phone}
-              onChange={e =>
-                setFormData({ ...formData, phone: e.target.value })
-              }
-              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.phone ? 'border-red-500' : 'border-gray-300'
-              }`}
+              onChange={e => handleFieldChange('phone', e.target.value)}
+              onBlur={() => handleFieldBlur('phone')}
+              className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
               disabled={loading}
+              placeholder="0912345678"
             />
             {errors.phone && (
               <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
@@ -287,14 +289,15 @@ export default function UserFormModal({
               onChange={e =>
                 setFormData({
                   ...formData,
-                  role: e.target.value as 'ORGANIZER' | 'STAFF'
+                  role: e.target.value as 'ADMIN' | 'ORGANIZER' | 'STAFF'
                 })
               }
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loading}
             >
-              <option value="STAFF">Staff</option>
+              <option value="ADMIN">Admin</option>
               <option value="ORGANIZER">Organizer</option>
+              <option value="STAFF">Staff</option>
             </select>
           </div>
 

@@ -15,12 +15,11 @@ export interface User {
 }
 
 export interface CreateUserRequest {
-  username: string
-  password: string
   fullName: string
-  email: string
   phone: string
-  role: 'ORGANIZER' | 'STAFF'
+  email: string
+  password: string
+  role: 'ADMIN' | 'ORGANIZER' | 'STAFF'
 }
 
 export interface UpdateUserRequest {
@@ -28,6 +27,6 @@ export interface UpdateUserRequest {
   fullName?: string
   email?: string
   phone?: string
-  role?: 'ORGANIZER' | 'STAFF'
+  role?: 'ADMIN' | 'ORGANIZER' | 'STAFF'
   status?: 'ACTIVE' | 'INACTIVE'
 }
