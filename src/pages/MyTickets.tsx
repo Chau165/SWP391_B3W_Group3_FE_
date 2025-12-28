@@ -383,7 +383,7 @@ export default function MyTickets() {
               const imageUrl = getImageUrl(t)
               const checkedIn = isCheckedIn(t)
               const status = getStatus(t)
-              const isPendingRefund = pendingReports.has(id)
+              const isPendingRefund = pendingReports.has(id) || status === 'PENDING'
 
               // startText: text hiển thị thời gian bắt đầu event
               // default nếu chưa có data hoặc data lỗi
@@ -441,9 +441,12 @@ export default function MyTickets() {
                       </div>
 
                       {/* Cột phải: icon trạng thái */}
-                      {/* Nếu EXPIRED -> icon đỏ */}
                       {status === 'EXPIRED' ? (
                         <XCircle className="w-6 h-6 text-red-500" />
+                      ) : status === 'REFUNDED' ? (
+                        <FileX className="w-6 h-6 text-indigo-500" />
+                      ) : status === 'PENDING' ? (
+                        <XCircle className="w-6 h-6 text-orange-500" />
                       ) : status === 'CHECKED_OUT' ? (
                         // Nếu đã check-out -> icon logout màu tím
                         <LogOut className="w-6 h-6 text-purple-500" />
@@ -471,28 +474,36 @@ export default function MyTickets() {
                           className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                             status === 'EXPIRED'
                               ? 'bg-red-100 text-red-800'
+                              : status === 'REFUNDED'
+                              ? 'bg-gray-100 text-gray-800'
                               : status === 'CHECKED_OUT'
                               ? 'bg-purple-100 text-purple-800'
                               : status === 'CHECKED_IN'
                               ? 'bg-green-100 text-green-800'
+                              : status === 'PENDING'
+                              ? 'bg-orange-100 text-orange-800'
                               : 'bg-yellow-100 text-yellow-800'
                           }`}
                         >
                           {/* Text trạng thái hiển thị tiếng Việt */}
                           {status === 'EXPIRED'
                             ? 'Hết hạn'
+                            : status === 'REFUNDED'
+                            ? 'Đã hoàn tiền'
                             : status === 'CHECKED_OUT'
                             ? 'Đã check-out'
                             : status === 'CHECKED_IN'
                             ? 'Đã check-in'
+                            : status === 'PENDING'
+                            ? 'Đang chờ hoàn tiền'
                             : 'Chưa check-in'}
                         </span>
                       )}
 
-                      {/* Nếu trạng thái CHECKED_IN và có checkInTime -> hiển thị thời điểm */}
-                      {status === 'CHECKED_IN' && getCheckInTime(t) && (
+                      {/* Nếu có check-in time -> hiển thị (hiển thị cả khi đã refunded) */}
+                      {getCheckInTime(t) && (
                         <div className="flex items-center text-sm text-gray-600 mt-2">
-                          <Clock className="w-4 h-4 mr-1 text-green-500" />
+                          <Clock className={`w-4 h-4 mr-1 ${isCheckedOut(t) ? 'text-purple-500' : 'text-green-500'}`} />
                           <span>Lúc: {formatTime(getCheckInTime(t))}</span>
                         </div>
                       )}
